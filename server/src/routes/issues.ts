@@ -11,6 +11,7 @@ import { issueSummariesQuerySchema, type IssueSummary } from "@paperclipai/share
 import { listIssueSummaries } from "../services/issue-summaries.js";
 import { assertNoCaseHandoffMutation } from "../services/heartbeat/case-handoff-lifecycle.js";
 import { assertLegacyRunTaskOwnership } from "../legacy-run-task-ownership.js";
+import { assertConversationIdentityMutationAllowed } from "../services/conversation-identity.js";
 import { withConversationReadState } from "../services/agent-chat-read-state.js";
 import { markIssueReadSchema } from "@paperclipai/shared";
 import { enqueueFastResponse } from "../services/fast-responses.js";
@@ -359,7 +360,10 @@ import {
   type TrustPresetResolution,
 } from "../services/trust-preset-resolver.js";
 import { externalObjectService } from "../services/external-objects.js";
-import { getExternalChannelBindingSummary } from "../services/chat-channel-binding.js";
+import {
+  assertExternalChannelAssigneeChangeAllowed,
+  getExternalChannelBindingSummary,
+} from "../services/chat-channel-binding.js";
 import { deliverAgentUnblockNotification } from "../services/routable-blocked.js";
 import {
   assertIssueReviewVerdictActorAllowed,
@@ -13955,6 +13959,15 @@ export function issueRoutes(
           req.body.assigneeAgentId as string | null | undefined,
           { actorType: req.actor.type },
         );
+      assertConversationIdentityMutationAllowed(existing, {
+        ...req.body,
+        assigneeAgentId: normalizedAssigneeAgentId,
+      });
+      await assertExternalChannelAssigneeChangeAllowed(
+        db,
+        existing,
+        normalizedAssigneeAgentId,
+      );
       const titleOrDescriptionChanged =
         req.body.title !== undefined || req.body.description !== undefined;
       const existingRelations = Array.isArray(req.body.blockedByIssueIds)
@@ -14241,37 +14254,6 @@ export function issueRoutes(
               "Only board users can interrupt active runs from issue comments",
           });
           return;
-        }
-
-        const runToInterrupt = await resolveActiveIssueRun(existing);
-        if (runToInterrupt) {
-          const cancelled = await heartbeat.cancelRun(
-            runToInterrupt.id,
-            "Interrupted by board comment",
-            operatorInterruptCancelOptions({ issueId: existing.id, actor }),
-          );
-          if (cancelled) {
-            interruptedRunId = cancelled.id;
-            await logActivity(db, {
-              companyId: cancelled.companyId,
-              actorType: actor.actorType,
-              actorId: actor.actorId,
-              agentId: actor.agentId,
-              runId: actor.runId,
-              agentApiKeyId: actor.agentApiKeyId,
-              action: "heartbeat.cancelled",
-              entityType: "heartbeat_run",
-              entityId: cancelled.id,
-              issueId: existing.id,
-              details: {
-                agentId: cancelled.agentId,
-                source: "issue_comment_interrupt",
-                issueId: existing.id,
-                cancellationKind: "operator_interrupted",
-                operatorInterrupted: true,
-              },
-            });
-          }
         }
       }
 
@@ -14597,6 +14579,46 @@ export function issueRoutes(
             assigneeAgentId: nextAssigneeAgentId,
             assigneeUserId: nextAssigneeUserId,
           });
+        }
+      }
+
+      assertConversationIdentityMutationAllowed(existing, updateFields);
+      await assertExternalChannelAssigneeChangeAllowed(
+        db,
+        existing,
+        nextAssigneeAgentId,
+      );
+
+      if (interruptRequested) {
+        const runToInterrupt = await resolveActiveIssueRun(existing);
+        if (runToInterrupt) {
+          const cancelled = await heartbeat.cancelRun(
+            runToInterrupt.id,
+            "Interrupted by board comment",
+            operatorInterruptCancelOptions({ issueId: existing.id, actor }),
+          );
+          if (cancelled) {
+            interruptedRunId = cancelled.id;
+            await logActivity(db, {
+              companyId: cancelled.companyId,
+              actorType: actor.actorType,
+              actorId: actor.actorId,
+              agentId: actor.agentId,
+              runId: actor.runId,
+              agentApiKeyId: actor.agentApiKeyId,
+              action: "heartbeat.cancelled",
+              entityType: "heartbeat_run",
+              entityId: cancelled.id,
+              issueId: existing.id,
+              details: {
+                agentId: cancelled.agentId,
+                source: "issue_comment_interrupt",
+                issueId: existing.id,
+                cancellationKind: "operator_interrupted",
+                operatorInterrupted: true,
+              },
+            });
+          }
         }
       }
 
