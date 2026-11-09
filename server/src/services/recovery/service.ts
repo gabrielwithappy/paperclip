@@ -9,7 +9,7 @@ import { notifyChatRunMilestones } from "../chat-run-milestone-notifications.js"
 import { boundRunIssueId } from "../run-task-binding.js";
 import { recoveryRunContextColumn, recoveryRunVersionColumn } from "./run-context-read.js";
 import { recoveryRunResultColumn } from "./run-result-read.js";
-import { readLegacyDispositionSource } from "./legacy-disposition-read.js";
+import { readLegacyDispositionSource, wasIssueReopenedAfterLegacyRun } from "./legacy-disposition-read.js";
 import { isAgentAwaitingSetup } from "../../modules/agent-lifecycle/index.js";
 import { onboardingFirstTaskAwaitingUserSql } from "./onboarding-first-task-wait.js";
 import { isAiAuthenticationBlocked } from "../ai-auth-failure.js";
@@ -3828,6 +3828,15 @@ export function recoveryService(
     const context = parseObject(run.contextSnapshot);
     if ((readNonEmptyString(context.issueId) ?? readNonEmptyString(context.taskId)) !== issue.id) {
       return { kind: "skip" as const, reason: "invalid_issue_binding" };
+    }
+    // A later request can reopen a completed issue. Its previous successful run
+    // must not become a disposition repair merely because the current status is todo.
+    if (issue.status === "todo" && await wasIssueReopenedAfterLegacyRun(db, {
+      companyId: issue.companyId,
+      issueId: issue.id,
+      finishedAt: run.finishedAt,
+    })) {
+      return { kind: "skip" as const, reason: "reopened_after_run" };
     }
     const [agent, pause, budget, stop, active, routine, goal, latest, durableWait, workspaceChildren] = await Promise.all([
       getAgent(run.agentId),
