@@ -171,7 +171,72 @@ docker compose -f docker/docker-compose.untrusted-review.yml build
 docker compose -f docker/docker-compose.untrusted-review.yml run --rm --service-ports review
 ```
 
-## Authenticated Compose (Single Public URL)
+## Authenticated Compose
+
+### Private board with a public Slack callback
+
+Use [the dedicated Compose file](../docker/docker-compose.private-slack.yml) when the
+Paperclip board should require login on a private HTTPS address while Slack can
+reach only its webhook path. It runs PostgreSQL, Paperclip, and an NGINX callback
+proxy. The host's existing Cloudflare Tunnel remains separate. PostgreSQL has no
+host port; Paperclip and the callback proxy bind to host loopback only.
+
+```sh
+cp docker/.env.private-slack.example docker/.env.private-slack
+# Edit the copied file with real HTTPS origins and three independent secrets.
+docker compose --env-file docker/.env.private-slack \
+  -f docker/docker-compose.private-slack.yml config
+docker compose --env-file docker/.env.private-slack \
+  -f docker/docker-compose.private-slack.yml up --build -d
+```
+
+`PAPERCLIP_PUBLIC_URL` must be a private HTTPS board origin reachable by the
+operator's browser. One option is Tailscale Serve forwarding that origin to the
+host's `127.0.0.1:${PAPERCLIP_BOARD_PORT:-3110}`. Slack OAuth returns to this
+board origin in the browser. Direct `http://localhost:3110` and
+`http://127.0.0.1:3110` access is also admitted for local setup; use the private
+HTTPS board URL for normal access. Browsers on another LAN device should use
+that HTTPS URL so they accept the secure session cookie.
+`PAPERCLIP_CHAT_WEBHOOK_PUBLIC_URL` is a separate
+public HTTPS origin, without a path. Include its hostname in
+`PAPERCLIP_ALLOWED_HOSTNAMES` so Paperclip admits the webhook's Host header.
+
+`PAPERCLIP_API_URL` is the origin injected into agent runtimes for their
+authenticated calls back to Paperclip. It must be reachable from execution
+containers. Do not use a host Tailscale Serve URL unless the containers can
+reach the tailnet listener. With this Compose file's published board port on a
+standard Linux Docker host, use
+`http://172.17.0.1:${PAPERCLIP_BOARD_PORT:-3110}` and include `172.17.0.1` in
+`PAPERCLIP_ALLOWED_HOSTNAMES`. From the actual execution container,
+`/api/health` must return 200 rather than a connection refusal or hostname-guard
+403.
+
+Configure a Cloudflare Tunnel's public hostname to forward to the
+host's `http://127.0.0.1:${PAPERCLIP_CALLBACK_PORT:-3111}`. The callback proxy
+passes only `POST /api/chat-webhooks/<publicId>/slack` to Paperclip and returns
+404 or 403 for other requests. Register the exact URL generated during Slack
+setup; the proxy accepts new endpoint IDs without a config edit. For a Tunnel
+launched with `--token`, confirm its effective hostname route in Zero Trust.
+Editing `/etc/cloudflared/config.yml` alone may not update it.
+
+The default board port here is 3110, so it can coexist with a local service on
+3100. A fresh stack can be started separately. **Do not treat a fresh Compose
+volume as a migration of an existing host installation.** Existing company data
+may be in an embedded PostgreSQL database, and file paths, workspace references,
+uploads, and secrets also need migration. Rehearse against separate volumes,
+then stop the host writer, take a final consistent backup, restore it, and
+check login, board ownership, companies, and agent workspaces before routing
+normal work to the new stack. A database dump alone is insufficient because
+some saved workspace paths are host paths. The existing `local-board` admin
+must be transferred using the one-time board-claim URL; the fresh-instance
+`Claim this instance` screen will not appear for a migrated database.
+
+Check the public callback hostname from outside the private network. The
+generated webhook path should reach Paperclip, while `/`, `/api/health`, and
+other API paths must be rejected by the proxy. Slack's URL verification and a
+real test message prove delivery; an invalid signature must still be rejected.
+
+### Single public URL
 
 For authenticated deployments, set one canonical public URL and let Paperclip derive auth/callback defaults:
 
