@@ -37,10 +37,10 @@ describe("buildRoutineTriggerPatch", () => {
       {
         label: "Daily label edit",
         cronExpression: "0 10 * * *",
+        timezone: "UTC",
         signingMode: "bearer",
         replayWindowSec: "300",
       },
-      "America/Chicago",
     );
 
     expect(patch).toEqual({
@@ -50,22 +50,22 @@ describe("buildRoutineTriggerPatch", () => {
     });
   });
 
-  it("falls back to the local timezone when a schedule trigger has none", () => {
+  it("saves a selected KST timezone for an existing schedule", () => {
     const patch = buildRoutineTriggerPatch(
       makeScheduleTrigger({ timezone: null }),
       {
         label: "",
         cronExpression: "15 9 * * 1-5",
+        timezone: "Asia/Seoul",
         signingMode: "bearer",
         replayWindowSec: "300",
       },
-      "America/Chicago",
     );
 
     expect(patch).toEqual({
       label: null,
       cronExpression: "15 9 * * 1-5",
-      timezone: "America/Chicago",
+      timezone: "Asia/Seoul",
     });
   });
 });

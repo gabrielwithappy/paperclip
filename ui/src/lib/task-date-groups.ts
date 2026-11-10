@@ -1,3 +1,5 @@
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
+
 export type TaskDateGroup = "today" | "yesterday" | "earlier";
 
 export const taskDateGroupLabels: Record<TaskDateGroup, string> = {
@@ -6,17 +8,21 @@ export const taskDateGroupLabels: Record<TaskDateGroup, string> = {
   earlier: "Earlier",
 };
 
-function localCalendarOrdinal(date: Date): number {
-  return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+const dayFormatter = new Intl.DateTimeFormat("en-US", { year: "numeric", month: "numeric", day: "numeric", timeZone: DEFAULT_TIME_ZONE });
+
+function kstCalendarOrdinal(date: Date): number {
+  const parts = dayFormatter.formatToParts(date);
+  const number = (type: string) => Number(parts.find((part) => part.type === type)?.value);
+  return Date.UTC(number("year"), number("month") - 1, number("day"));
 }
 
-/** Groups timestamps by the operator's local calendar, including across DST. */
+/** Groups timestamps by the KST calendar day. */
 export function taskDateGroup(value: Date | string | number, now: Date = new Date()): TaskDateGroup {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return "earlier";
 
   const dayDifference = Math.round(
-    (localCalendarOrdinal(now) - localCalendarOrdinal(date)) / (24 * 60 * 60 * 1000),
+    (kstCalendarOrdinal(now) - kstCalendarOrdinal(date)) / (24 * 60 * 60 * 1000),
   );
   if (dayDifference <= 0) return "today";
   if (dayDifference === 1) return "yesterday";

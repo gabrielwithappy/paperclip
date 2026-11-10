@@ -12,6 +12,13 @@ workflow information and history.
 
 Paperclip is the control plane for autonomous AI companies. One instance of Paperclip can run multiple companies. A **company** is a first-order object.
 
+Human-facing timestamps and new routine schedules use Korea Standard Time
+(`Asia/Seoul`) by default. A routine schedule can select a different time zone;
+existing schedules keep their saved zone. Routine `{{date}}` and `{{timestamp}}`
+variables use KST. API timestamps remain UTC instants, and monthly budget
+windows remain UTC calendar months. Built-in managed schedules retain their
+explicitly configured time zones.
+
 ## Core Concepts
 
 ### Company

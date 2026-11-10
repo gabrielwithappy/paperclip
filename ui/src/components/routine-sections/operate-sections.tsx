@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Activity as ActivityIcon } from "lucide-react";
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import { issuesApi } from "@/api/issues";
 import { queryKeys } from "@/lib/queryKeys";
 import { routineDetailHref } from "../RoutineContextualSidebar";
@@ -61,6 +62,7 @@ export function ActivitySection({ isLoading = false, error }: { isLoading?: bool
       let label = "Earlier";
       try {
         label = new Date(event.createdAt).toLocaleDateString(undefined, {
+          timeZone: DEFAULT_TIME_ZONE,
           weekday: "short",
           month: "short",
           day: "numeric",

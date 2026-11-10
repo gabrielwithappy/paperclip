@@ -12,6 +12,13 @@ let container: HTMLDivElement;
 beforeEach(() => { vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true); container = document.createElement("div"); document.body.append(container); root = createRoot(container); });
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); });
 
+it("offers KST in the new schedule time zone menu", async () => {
+  await act(async () => root.render(<RoutineTriggerWizard initialDraft={{ ...defaultTriggerDraft, kind: "schedule", step: 1 }} routineTitle="Daily report" routineId="routine-1" onSaveExit={() => {}} onFinish={() => {}} />));
+  const timezone = container.querySelector<HTMLSelectElement>("#timezone");
+  expect(timezone?.value).toBe("Asia/Seoul");
+  expect([...timezone!.options].map((option) => option.value)).toContain("UTC");
+});
+
 it("offers the shared app flow without a Fireflies-specific sender", async () => {
   await act(async () => root.render(<RoutineTriggerWizard initialDraft={{ ...defaultTriggerDraft, kind: "webhook" }} routineTitle="Process meetings" routineId="routine-1" onSaveExit={() => {}} onFinish={() => {}} />));
   expect(container.textContent).toContain("Another app or script");

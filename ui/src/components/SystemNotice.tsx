@@ -1,3 +1,4 @@
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import { useId, useState, type ReactNode } from "react";
 import {
   ChevronDown,
@@ -100,7 +101,7 @@ const TONE_TOKENS: Record<SystemNoticeTone, ToneTokens> = {
 
 function formatTimestamp(ts: string) {
   try {
-    return new Date(ts).toLocaleString(undefined, {
+    return new Date(ts).toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE,
       month: "short",
       day: "numeric",
       hour: "numeric",

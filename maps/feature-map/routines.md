@@ -52,11 +52,12 @@ complete the generated task or establish a useful task output.
 
 Automated: [trigger wizard](../../ui/src/components/routine-triggers/TriggerWizard.test.tsx) is component coverage; [routine integration](../../server/src/__tests__/routines-e2e.test.ts) is server integration rather than a provider-wide browser proof.
 
-Manual: Set a near-term disposable schedule or authorized test webhook, verify one eligible execution and its source trigger, then disable it and confirm further invocations stop. Inspect a failed execution without losing its history. Remove the temporary trigger after testing.
+Manual: Set a near-term disposable schedule or authorized test webhook, verify one eligible execution and its source trigger, then disable it and confirm further invocations stop. New schedules default to `Asia/Seoul`; verify the preview and saved zone, then select another valid IANA zone and confirm it persists. An invalid zone must prevent saving. Inspect a failed execution without losing its history. Remove the temporary trigger after testing.
 
 ## Gotchas
 
 - Saving a schedule does not prove the scheduler invoked it.
+- Existing schedules retain their saved time zones; built-in `{{date}}` and `{{timestamp}}` variables use KST.
 - Timezone, overlap/concurrency rules, and plugin ownership affect behavior.
 - A routine run’s task must still respect pause, access, and budget gates.
 - Managed idle hosts may use the [routine wake protocol](../../doc/idle-sleep-safety.md#scheduled-routine-wake-protocol)

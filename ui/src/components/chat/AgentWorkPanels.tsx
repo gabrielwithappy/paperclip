@@ -1,3 +1,4 @@
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpDown, File, FileText, Image, Search, Video } from "lucide-react";
@@ -97,7 +98,7 @@ export function AgentTaskCard({ task }: { task: Issue }) {
       <div className="flex items-center gap-1.5 pl-6 text-xs text-muted-foreground">
         <span className="font-mono">{task.identifier ?? task.id.slice(0, 8)}</span>
         <span aria-hidden>·</span>
-        <time dateTime={new Date(task.updatedAt).toISOString()} title={new Date(task.updatedAt).toLocaleString()}>
+        <time dateTime={new Date(task.updatedAt).toISOString()} title={new Date(task.updatedAt).toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE })}>
           {relativeTime(task.updatedAt)}
         </time>
       </div>

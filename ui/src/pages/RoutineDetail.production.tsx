@@ -137,14 +137,6 @@ function autoResizeTextarea(element: HTMLTextAreaElement | null) {
   element.style.height = `${element.scrollHeight}px`;
 }
 
-function getLocalTimezone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone;
-  } catch {
-    return "UTC";
-  }
-}
-
 function buildRoutineMutationPayload(input: RoutineEditDraft) {
   return {
     ...input,
@@ -485,7 +477,7 @@ export function RoutineDetail() {
         kind: newTrigger.kind,
         label: autoLabel,
         ...(newTrigger.kind === "schedule"
-          ? { cronExpression: newTrigger.cronExpression.trim(), timezone: getLocalTimezone() }
+          ? { cronExpression: newTrigger.cronExpression.trim(), timezone: newTrigger.timezone }
           : {}),
         ...(newTrigger.kind === "webhook"
           ? { signingMode: newTrigger.signingMode, replayWindowSec: Number(newTrigger.replayWindowSec || "300") }

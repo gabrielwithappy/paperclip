@@ -1,4 +1,4 @@
-import type { StatusCardRefreshPolicy } from "@paperclipai/shared";
+import { DEFAULT_TIME_ZONE, type StatusCardRefreshPolicy } from "@paperclipai/shared";
 import { ChevronDown } from "lucide-react";
 
 import { Checkbox } from "@/components/ui/checkbox";
@@ -112,7 +112,7 @@ export function StatusCardSettingsForm({
   const setActiveHoursEnabled = (enabled: boolean) =>
     setPolicy({
       activeHours: enabled
-        ? { start: activeHours?.start ?? "08:00", end: activeHours?.end ?? "19:00", timezone: activeHours?.timezone ?? "UTC" }
+        ? { start: activeHours?.start ?? "08:00", end: activeHours?.end ?? "19:00", timezone: activeHours?.timezone ?? DEFAULT_TIME_ZONE }
         : undefined,
     });
 

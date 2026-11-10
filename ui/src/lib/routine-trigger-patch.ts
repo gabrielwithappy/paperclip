@@ -3,6 +3,7 @@ import type { RoutineTrigger } from "@paperclipai/shared";
 export type RoutineTriggerEditorDraft = {
   label: string;
   cronExpression: string;
+  timezone: string;
   signingMode: string;
   replayWindowSec: string;
 };
@@ -10,7 +11,6 @@ export type RoutineTriggerEditorDraft = {
 export function buildRoutineTriggerPatch(
   trigger: RoutineTrigger,
   draft: RoutineTriggerEditorDraft,
-  fallbackTimezone: string,
 ) {
   const patch: Record<string, unknown> = {
     label: draft.label.trim() || null,
@@ -18,7 +18,7 @@ export function buildRoutineTriggerPatch(
 
   if (trigger.kind === "schedule") {
     patch.cronExpression = draft.cronExpression.trim();
-    patch.timezone = trigger.timezone ?? fallbackTimezone;
+    patch.timezone = draft.timezone;
   }
 
   if (trigger.kind === "webhook") {

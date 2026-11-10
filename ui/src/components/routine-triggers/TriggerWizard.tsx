@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import {
   CalendarClock,
   Check,
@@ -42,7 +43,7 @@ export const defaultTriggerDraft: TriggerDraft = {
   frequency: "weekdays",
   time: "09:00",
   weekday: "Monday",
-  timezone: "America/Chicago",
+  timezone: DEFAULT_TIME_ZONE,
   created: false,
 };
 export function webhookAgentInstructions(
@@ -353,6 +354,7 @@ export function RoutineTriggerWizard({
                 {Array.from(
                   new Set([
                     draft.timezone,
+                    DEFAULT_TIME_ZONE,
                     "America/Chicago",
                     "America/New_York",
                     "America/Los_Angeles",

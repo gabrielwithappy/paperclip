@@ -1,3 +1,4 @@
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -682,7 +683,7 @@ function ProviderPendingResult({ pending, appName, connectionId, agent }: { pend
       {pending.links.length === 0 && !pending.resumeTool && <p>Open the provider dashboard to complete this request.</p>}
       {pending.executionId && <p>Execution: <code className="break-all">{pending.executionId}</code></p>}
       {pending.elicitationId && <p>Request: <code className="break-all">{pending.elicitationId}</code></p>}
-      {pending.expiresAt && <p>Approval expires {new Date(pending.expiresAt).toLocaleTimeString()}.</p>}
+      {pending.expiresAt && <p>Approval expires {new Date(pending.expiresAt).toLocaleTimeString(undefined, { timeZone: DEFAULT_TIME_ZONE })}.</p>}
       {pending.resumeTool && agent ? <ProviderResumeControls pending={pending} connectionId={connectionId} agent={agent} onResult={setResumed} /> :
       <p className="text-muted-foreground">{pending.resumeTool
         ? `After approval, test the ${pending.resumeTool} action with this execution ID. Do not start the original action again.`

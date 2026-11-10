@@ -1,4 +1,5 @@
 import type { RoutineVariable } from "./types/routine.js";
+import { DEFAULT_TIME_ZONE } from "./constants.js";
 
 // Tolerate markdown-escaped underscores (`\_`) inside placeholders. WYSIWYG markdown
 // editors (e.g. MDXEditor) serialize `_` between word chars as `\_` to prevent
@@ -28,20 +29,26 @@ const HUMAN_TIMESTAMP_FORMATTER = new Intl.DateTimeFormat("en-US", {
   hour: "numeric",
   minute: "2-digit",
   hour12: true,
-  timeZone: "UTC",
-  timeZoneName: "short",
+  timeZone: DEFAULT_TIME_ZONE,
+});
+const DATE_FORMATTER = new Intl.DateTimeFormat("en-CA", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  timeZone: DEFAULT_TIME_ZONE,
 });
 
 /**
  * Returns current values for all built-in routine variables.
- * `date` expands to the current date in YYYY-MM-DD format (UTC).
- * `timestamp` expands to a human-readable date and time (e.g. "April 28, 2026 at 12:17 PM UTC").
+ * `date` expands to the current date in YYYY-MM-DD format (KST).
+ * `timestamp` expands to a human-readable date and time in KST.
  */
-export function getBuiltinRoutineVariableValues(): Record<string, string> {
-  const now = new Date();
+export function getBuiltinRoutineVariableValues(now = new Date()): Record<string, string> {
+  const dateParts = DATE_FORMATTER.formatToParts(now);
+  const part = (type: string) => dateParts.find((item) => item.type === type)?.value;
   return {
-    date: now.toISOString().slice(0, 10),
-    timestamp: HUMAN_TIMESTAMP_FORMATTER.format(now),
+    date: `${part("year")}-${part("month")}-${part("day")}`,
+    timestamp: `${HUMAN_TIMESTAMP_FORMATTER.format(now)} KST`,
   };
 }
 

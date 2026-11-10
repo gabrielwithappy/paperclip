@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { nextCronFires, parseCronExpression } from "../lib/cron-fires";
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 
 export type SchedulePreset = "every_minute" | "every_hour" | "every_day" | "weekdays" | "weekly" | "monthly" | "custom";
 
@@ -152,12 +153,17 @@ function ordinalSuffix(n: number): string {
 
 export { describeSchedule };
 
-export function getScheduleCronValidation(cron: string): {
+export function getScheduleCronValidation(cron: string, timeZone = DEFAULT_TIME_ZONE): {
   valid: boolean;
   message: string;
   nextFires: Date[];
 } {
   const trimmed = cron.trim();
+  try {
+    new Intl.DateTimeFormat("en", { timeZone });
+  } catch {
+    return { valid: false, message: "Enter a valid IANA time zone.", nextFires: [] };
+  }
   if (!trimmed) {
     return {
       valid: false,
@@ -183,7 +189,7 @@ export function getScheduleCronValidation(cron: string): {
     };
   }
 
-  const nextFires = nextCronFires(trimmed, 3, { timeZone: "UTC" });
+  const nextFires = nextCronFires(trimmed, 3, { timeZone });
   return {
     valid: true,
     message: nextFires.length > 0 ? "Valid cron." : "Valid cron, but no upcoming fires were found.",
@@ -193,10 +199,12 @@ export function getScheduleCronValidation(cron: string): {
 
 export function ScheduleEditor({
   value,
+  timeZone = DEFAULT_TIME_ZONE,
   onChange,
   onValidityChange,
 }: {
   value: string;
+  timeZone?: string;
   onChange: (cron: string) => void;
   onValidityChange?: (valid: boolean) => void;
 }) {
@@ -207,11 +215,12 @@ export function ScheduleEditor({
   const [dayOfWeek, setDayOfWeek] = useState(parsed.dayOfWeek);
   const [dayOfMonth, setDayOfMonth] = useState(parsed.dayOfMonth);
   const [customCron, setCustomCron] = useState(preset === "custom" ? value : "");
-  const customValidation = useMemo(() => getScheduleCronValidation(customCron), [customCron]);
+  const customValidation = useMemo(() => getScheduleCronValidation(customCron, timeZone), [customCron, timeZone]);
+  const presetValidation = useMemo(() => getScheduleCronValidation(value, timeZone), [value, timeZone]);
 
   useEffect(() => {
-    onValidityChange?.(preset !== "custom" || customValidation.valid);
-  }, [customValidation.valid, onValidityChange, preset]);
+    onValidityChange?.(preset === "custom" ? customValidation.valid : presetValidation.valid);
+  }, [customValidation.valid, onValidityChange, preset, presetValidation.valid]);
 
   // Sync from external value changes
   useEffect(() => {
@@ -270,7 +279,7 @@ export function ScheduleEditor({
               // their submit affordance in the same render. Relying solely on the
               // effect below leaves a one-tick window where an invalid draft still
               // reads as valid to the parent.
-              const nextValidation = getScheduleCronValidation(nextCron);
+              const nextValidation = getScheduleCronValidation(nextCron, timeZone);
               onValidityChange?.(nextValidation.valid);
               if (nextValidation.valid) {
                 emitChange("custom", hour, minute, dayOfWeek, dayOfMonth, nextCron);
@@ -290,7 +299,7 @@ export function ScheduleEditor({
           >
             {customValidation.message}
             {customValidation.valid && customValidation.nextFires.length > 0
-              ? ` Next: ${customValidation.nextFires.map((fire) => fire.toLocaleString()).join(", ")}.`
+              ? ` Next (${timeZone}): ${customValidation.nextFires.map((fire) => fire.toLocaleString(undefined, { timeZone })).join(", ")}.`
               : null}
           </p>
         </div>

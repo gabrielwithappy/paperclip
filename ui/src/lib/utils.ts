@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { deriveAgentUrlKey, deriveProjectUrlKey, normalizeProjectUrlKey, hasNonAsciiContent } from "@paperclipai/shared";
+import { DEFAULT_TIME_ZONE, deriveAgentUrlKey, deriveProjectUrlKey, normalizeProjectUrlKey, hasNonAsciiContent } from "@paperclipai/shared";
 import type { BillingType, FinanceDirection, FinanceEventKind } from "@paperclipai/shared";
 
 export function cn(...inputs: ClassValue[]) {
@@ -57,6 +57,7 @@ export function formatProjectBudget(budget: { amountCents: number; windowKind: s
 
 export function formatDate(date: Date | string): string {
   return new Date(date).toLocaleDateString("en-US", {
+    timeZone: DEFAULT_TIME_ZONE,
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -68,6 +69,7 @@ export function formatDateTime(
   options: { includeSeconds?: boolean; includeYear?: boolean } = {},
 ): string {
   return new Date(date).toLocaleString("en-US", {
+    timeZone: DEFAULT_TIME_ZONE,
     month: "short",
     day: "numeric",
     ...(options.includeYear === false ? {} : { year: "numeric" as const }),
@@ -79,6 +81,7 @@ export function formatDateTime(
 
 export function formatShortDate(date: Date | string): string {
   return new Date(date).toLocaleString("en-US", {
+    timeZone: DEFAULT_TIME_ZONE,
     month: "short",
     day: "numeric",
   });

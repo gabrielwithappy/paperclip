@@ -1,3 +1,4 @@
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
@@ -67,7 +68,7 @@ export function DotRunnerConnection({ companyId, agentId, bindingId, onBinding }
         description="Paste into your Dot to connect this agent."
         side="bottom"
       />
-      <p className="text-xs text-muted-foreground">Setup prompt expires {new Date(pairing.expiresAt).toLocaleTimeString()}.</p>
+      <p className="text-xs text-muted-foreground">Setup prompt expires {new Date(pairing.expiresAt).toLocaleTimeString(undefined, { timeZone: DEFAULT_TIME_ZONE })}.</p>
     </div>}
     {!pairing && b?.status === "pairing" && <p className="text-sm text-muted-foreground">Revoke the pending connection and pair again to generate a fresh setup prompt.</p>}
     <div className="flex flex-wrap items-center gap-2">

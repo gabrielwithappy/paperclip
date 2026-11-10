@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PROVIDER_QUOTA_MONITOR_SERVICE_NAME } from "@paperclipai/shared";
+import { DEFAULT_TIME_ZONE, PROVIDER_QUOTA_MONITOR_SERVICE_NAME } from "@paperclipai/shared";
 
 const SECOND_MS = 1_000;
 const MINUTE_MS = 60 * SECOND_MS;
@@ -111,7 +111,7 @@ function zonedYmd(
     year: "numeric",
     month: "numeric",
     day: "numeric",
-    timeZone,
+    timeZone: timeZone ?? DEFAULT_TIME_ZONE,
   }).formatToParts(date);
   const pick = (type: Intl.DateTimeFormatPartTypes) =>
     parts.find((part) => part.type === type)?.value ?? "";
@@ -138,7 +138,7 @@ export function formatMonitorAbsolute(
   const time = new Intl.DateTimeFormat(options.locale, {
     hour: "numeric",
     minute: "2-digit",
-    timeZone: options.timeZone,
+    timeZone: options.timeZone ?? DEFAULT_TIME_ZONE,
   }).format(target);
 
   const isToday =
@@ -149,13 +149,13 @@ export function formatMonitorAbsolute(
 
   const weekday = new Intl.DateTimeFormat(options.locale, {
     weekday: "short",
-    timeZone: options.timeZone,
+    timeZone: options.timeZone ?? DEFAULT_TIME_ZONE,
   }).format(target);
   const date = new Intl.DateTimeFormat(options.locale, {
     month: "short",
     day: "numeric",
     year: targetYmd.year === referenceYmd.year ? undefined : "numeric",
-    timeZone: options.timeZone,
+    timeZone: options.timeZone ?? DEFAULT_TIME_ZONE,
   }).format(target);
 
   return `${weekday} ${date}, ${time}`;
@@ -171,14 +171,14 @@ export function formatMonitorAbsoluteFull(
     year: "numeric",
     month: "long",
     day: "numeric",
-    timeZone: options.timeZone,
+    timeZone: options.timeZone ?? DEFAULT_TIME_ZONE,
   }).format(date);
   const timePart = new Intl.DateTimeFormat(options.locale, {
     hour: "numeric",
     minute: "2-digit",
     second: "2-digit",
     timeZoneName: "short",
-    timeZone: options.timeZone,
+    timeZone: options.timeZone ?? DEFAULT_TIME_ZONE,
   }).format(date);
   return `${datePart}, ${timePart}`;
 }

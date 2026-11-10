@@ -1,4 +1,5 @@
 import { createContext, useContext } from "react";
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import type { UseMutationResult } from "@tanstack/react-query";
 import type {
   CompanySecret,
@@ -65,6 +66,7 @@ export type RoutineEditDraft = {
 export type NewTriggerDraft = {
   kind: string;
   cronExpression: string;
+  timezone: string;
   signingMode: string;
   replayWindowSec: string;
 };
@@ -73,6 +75,7 @@ export function createDefaultNewTrigger(): NewTriggerDraft {
   return {
     kind: "schedule",
     cronExpression: "0 10 * * *",
+    timezone: DEFAULT_TIME_ZONE,
     signingMode: "bearer",
     replayWindowSec: "300",
   };

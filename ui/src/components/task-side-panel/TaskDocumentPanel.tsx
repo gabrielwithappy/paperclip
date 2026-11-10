@@ -1,3 +1,4 @@
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { IssueDocument } from "@paperclipai/shared";
@@ -84,7 +85,7 @@ export function TaskDocumentPanel({
         <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
           <span>{`Revision ${document.latestRevisionNumber ?? 1}`}</span>
           <span aria-hidden>·</span>
-          <span>{`Updated ${new Date(document.updatedAt).toLocaleString()}`}</span>
+          <span>{`Updated ${new Date(document.updatedAt).toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE })}`}</span>
           {!revisionId ? <DocumentAnnotationsCountChip
             issueId={issueId}
             docKey={document.key}

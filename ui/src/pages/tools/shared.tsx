@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import type {
   ToolRiskLevel,
   ToolConnectionHealthStatus,
@@ -131,7 +132,7 @@ export function RelativeTime({ value }: { value: Date | string | null | undefine
     text = isFuture ? `in ${value}` : `${value} ago`;
   }
   return (
-    <span title={date.toLocaleString()} className="text-muted-foreground">
+    <span title={date.toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE })} className="text-muted-foreground">
       {text}
     </span>
   );

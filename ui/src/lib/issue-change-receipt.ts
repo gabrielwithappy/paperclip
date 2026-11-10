@@ -1,4 +1,4 @@
-import type { IssueChangeReceiptEntry } from "@paperclipai/shared";
+import { DEFAULT_TIME_ZONE, type IssueChangeReceiptEntry } from "@paperclipai/shared";
 import { formatReviewPolicyValue } from "./review-policy";
 
 /**
@@ -82,7 +82,7 @@ export function formatIssueChangeValue(
       : `${strings.length} items`;
   }
 
-  if (value instanceof Date) return value.toLocaleString();
+  if (value instanceof Date) return value.toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE });
 
   if (typeof value === "string") {
     const trimmed = value.trim();
@@ -94,7 +94,7 @@ export function formatIssueChangeValue(
         ? options.resolveUserLabel?.(trimmed)
         : null;
     if (resolved) return resolved;
-    if (isIsoTimestamp(trimmed)) return new Date(trimmed).toLocaleString();
+    if (isIsoTimestamp(trimmed)) return new Date(trimmed).toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE });
     if (looksLikeId(trimmed)) return shortenId(trimmed);
     const humanized = trimmed.includes(" ") ? trimmed : trimmed.replace(/_/g, " ");
     return truncate(humanized);

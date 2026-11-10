@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  DEFAULT_TIME_ZONE,
   ISSUE_PRIORITIES,
   ROUTINE_ACTIVITY_GATE_POLICIES,
   ROUTINE_ACTIVITY_GATE_SCOPES,
@@ -140,7 +141,7 @@ export const createRoutineTriggerSchema = z.discriminatedUnion("kind", [
   baseTriggerSchema.extend({
     kind: z.literal("schedule"),
     cronExpression: z.string().trim().min(1),
-    timezone: z.string().trim().min(1).default("UTC"),
+    timezone: z.string().trim().min(1).default(DEFAULT_TIME_ZONE),
   }),
   baseTriggerSchema.extend({
     kind: z.literal("webhook"),

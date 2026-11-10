@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import { Link } from "@/lib/router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
@@ -50,6 +51,7 @@ function revisionLabel(revision: SummarySlotRevision) {
 
 function formatRevisionTimestamp(date: Date | string) {
   return new Intl.DateTimeFormat("en-US", {
+    timeZone: DEFAULT_TIME_ZONE,
     month: "short",
     day: "numeric",
     hour: "2-digit",

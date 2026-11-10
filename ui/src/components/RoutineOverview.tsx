@@ -5,7 +5,7 @@ import type {
   RoutineRunSummary,
   RoutineTrigger,
 } from "@paperclipai/shared";
-import { ISSUE_PRIORITIES, ISSUE_STATUSES } from "@paperclipai/shared";
+import { DEFAULT_TIME_ZONE, ISSUE_PRIORITIES, ISSUE_STATUSES } from "@paperclipai/shared";
 import { CalendarClock, Clock3, Play, Repeat, UserRound } from "lucide-react";
 import { IssueRow } from "@/components/IssueRow";
 import { MarkdownBody } from "@/components/MarkdownBody";
@@ -26,6 +26,7 @@ export type RoutineScheduleSummary = {
 
 export function formatRoutineTimestamp(value: Date | string) {
   return new Date(value).toLocaleString(undefined, {
+    timeZone: DEFAULT_TIME_ZONE,
     dateStyle: "medium",
     timeStyle: "short",
   });

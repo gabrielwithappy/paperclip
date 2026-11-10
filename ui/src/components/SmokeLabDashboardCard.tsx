@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import { FlaskConical, ChevronRight } from "lucide-react";
 import { Link } from "@/lib/router";
 import { smokeLabApi } from "@/api/smokeLab";
@@ -26,7 +27,7 @@ function formatTime(value: string | Date | null | undefined): string {
   if (!value) return "—";
   const date = new Date(value as string | Date);
   if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(date);
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short", timeZone: DEFAULT_TIME_ZONE }).format(date);
 }
 
 /**

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  createRoutineTriggerSchema,
   routineRevisionSnapshotV1Schema,
   routineVariableSchema,
   updateRoutineSchema,
@@ -11,6 +12,10 @@ const triggerId = "33333333-3333-4333-8333-333333333333";
 const baseRevisionId = "44444444-4444-4444-8444-444444444444";
 
 describe("routine validators", () => {
+  it("defaults new schedule triggers to KST while honoring explicit timezones", () => {
+    expect(createRoutineTriggerSchema.parse({ kind: "schedule", cronExpression: "0 9 * * *" })).toMatchObject({ timezone: "Asia/Seoul" });
+    expect(createRoutineTriggerSchema.parse({ kind: "schedule", cronExpression: "0 9 * * *", timezone: "UTC" })).toMatchObject({ timezone: "UTC" });
+  });
   it.each(["bearer", "app_webhook", "fireflies_hmac"])("accepts versioned routine revision snapshots with %s trigger metadata", (signingMode) => {
     const parsed = routineRevisionSnapshotV1Schema.parse({
       version: 1,

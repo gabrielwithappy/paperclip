@@ -1,4 +1,6 @@
 export const COMPANY_STATUSES = ["active", "paused", "archived"] as const;
+/** Default wall-clock timezone for Paperclip's human-facing time and new schedules. */
+export const DEFAULT_TIME_ZONE = "Asia/Seoul";
 export const ISSUE_SUMMARIES_MAX_IDS = 5;
 export type CompanyStatus = (typeof COMPANY_STATUSES)[number];
 

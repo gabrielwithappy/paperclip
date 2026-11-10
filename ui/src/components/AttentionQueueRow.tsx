@@ -1,3 +1,5 @@
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
+import { tomorrowMorningKstIso } from "../lib/kst-calendar";
 import { memo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -61,19 +63,11 @@ const DAY_MS = 24 * HOUR_MS;
 // the row also reflows correctly inside narrow side panels, not just on phones.
 const ACTION_BTN = "h-9 gap-1.5 px-3 text-sm @xl:h-6 @xl:gap-1 @xl:px-2 @xl:text-xs";
 
-/** Tomorrow at 9am local time. */
-function tomorrowMorningIso(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  d.setHours(9, 0, 0, 0);
-  return d.toISOString();
-}
-
 /** Snooze presets, resolved to a future ISO timestamp at click time. */
 const SNOOZE_PRESETS: ReadonlyArray<{ label: string; resolve: () => string }> = [
   { label: "1 hour", resolve: () => new Date(Date.now() + HOUR_MS).toISOString() },
   { label: "4 hours", resolve: () => new Date(Date.now() + 4 * HOUR_MS).toISOString() },
-  { label: "Tomorrow morning", resolve: tomorrowMorningIso },
+  { label: "Tomorrow morning", resolve: tomorrowMorningKstIso },
   { label: "Next week", resolve: () => new Date(Date.now() + 7 * DAY_MS).toISOString() },
 ];
 
@@ -293,7 +287,7 @@ export const AttentionQueueRow = memo(function AttentionQueueRow({
           {isHidden && snoozedUntil ? (
             <span
               className="text-(length:--text-nano) text-muted-foreground"
-              title={`Reappears ${new Date(snoozedUntil).toLocaleString()}`}
+              title={`Reappears ${new Date(snoozedUntil).toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE })}`}
             >
               Reappears {reappearLabel(snoozedUntil)}
             </span>

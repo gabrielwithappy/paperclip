@@ -1,3 +1,4 @@
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import { useId } from "react";
 import { Check, Circle, Loader2 } from "lucide-react";
 import { AGENT_ROLES, type CreateGrokInvitation, type DotPairing, type GrokConnection } from "@paperclipai/shared";
@@ -66,7 +67,7 @@ export function GrokBotSetupContent(p: GrokBotSetupContentProps) {
               <Input id={pairingCodeId} value={p.pairing.pairingCode} readOnly type="password" autoComplete="off" />
               <CopyText text={p.pairing.pairingCode} ariaLabel="Copy pairing code" className={buttonVariants({ variant: "outline", size: "sm" })}>Copy code</CopyText>
             </div>
-            <p className="text-xs text-muted-foreground">Copy this code into Paperclip’s authorization page. Do not paste it into Bot chat. Expires {new Date(p.pairing.expiresAt).toLocaleTimeString()}.</p>
+            <p className="text-xs text-muted-foreground">Copy this code into Paperclip’s authorization page. Do not paste it into Bot chat. Expires {new Date(p.pairing.expiresAt).toLocaleTimeString(undefined, { timeZone: DEFAULT_TIME_ZONE })}.</p>
           </div>}
           <p role="status" aria-live="polite" className="text-muted-foreground">{binding?.connected ? "Agent access connected." : "Watching for authorization. This connection works as the named agent."}</p>
           <p className="text-xs text-muted-foreground">Grok plugins are account-wide. Linking one Bot does not isolate its credentials from other Bots on your account.</p>

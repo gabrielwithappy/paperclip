@@ -1,4 +1,4 @@
-import { isNativeWorkspaceExportRepairCause } from "@paperclipai/shared";
+import { DEFAULT_TIME_ZONE, isNativeWorkspaceExportRepairCause } from "@paperclipai/shared";
 import { useWorkspaceIsolationControls } from "@/hooks/useWorkspaceIsolationControls";
 import { requiresExecutionReconciliation } from "@paperclipai/shared";
 import { useMemo, useState } from "react";
@@ -788,6 +788,7 @@ function formatTimeShort(value: string | Date | null | undefined): string | null
       return diffMs >= 0 ? `in ${absMin}m` : `${absMin}m ago`;
     }
     return date.toLocaleString(undefined, {
+      timeZone: DEFAULT_TIME_ZONE,
       month: "short",
       day: "numeric",
       hour: "numeric",
@@ -891,6 +892,7 @@ function formatTimeAbsolute(value: string | Date | null | undefined): string | n
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   return date.toLocaleString(undefined, {
+    timeZone: DEFAULT_TIME_ZONE,
     month: "short",
     day: "numeric",
     hour: "numeric",

@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import { Clock3, FileDiff, GitCommit, type LucideIcon } from "lucide-react";
 import { healthApi, type HealthStatus } from "@/api/health";
 import { instanceSettingsApi } from "@/api/instanceSettings";
@@ -9,6 +10,7 @@ function formatTimestamp(value: string | null | undefined): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Unavailable";
   return new Intl.DateTimeFormat(undefined, {
+    timeZone: DEFAULT_TIME_ZONE,
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);

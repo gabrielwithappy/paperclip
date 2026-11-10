@@ -1,3 +1,4 @@
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
@@ -30,7 +31,7 @@ export function SpekoCallActivityItem({ entry: { session, report }, onEnd, endin
     if (restoreFocus.current && ["ended", "failed", "expired"].includes(session.state)) { summary.current?.focus(); restoreFocus.current = false; }
   }, [session.state]);
   return <details data-activity-kind="call" className={presentation === "activity" ? "px-2 py-3 transition-colors hover:bg-accent/50" : "rounded-md border border-border p-3"}>
-    <summary ref={summary} className="cursor-pointer break-words text-sm font-medium">{modeNames[session.mode]} · {stateNames[session.state]}<span className="ml-2 text-xs font-normal text-muted-foreground">{new Date(session.createdAt).toLocaleString()}</span></summary>
+    <summary ref={summary} className="cursor-pointer break-words text-sm font-medium">{modeNames[session.mode]} · {stateNames[session.state]}<span className="ml-2 text-xs font-normal text-muted-foreground">{new Date(session.createdAt).toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE })}</span></summary>
     <div className="mt-3 space-y-3"><Link className="text-sm text-primary underline" to={`/issues/${encodeURIComponent(session.issueId)}`}>Conversation task</Link>
       {session.errorCode && <p className="text-sm text-muted-foreground">{session.errorCode === "cleanup_pending" ? "Confirming call cleanup with Speko." : "This call encountered a connection problem. Check your Speko connection before trying again."}</p>}
       {!session.endedAt && !["ended", "failed", "expired"].includes(session.state) && session.callerAuthority !== "guest_intake" && onEnd && <Button size="sm" variant="outline" disabled={ending} onClick={() => { restoreFocus.current = true; onEnd(session.id); }}>{ending ? "Ending…" : "End call"}</Button>}
@@ -39,7 +40,7 @@ export function SpekoCallActivityItem({ entry: { session, report }, onEnd, endin
   </details>;
 }
 export function SpekoUnapprovedCallActivityItem({ call, presentation = "history" }: { call: VoiceUnapprovedCallHistoryEntry; presentation?: "history" | "activity" }) {
-  return <div data-activity-kind="unapproved_call" className={presentation === "activity" ? "px-2 py-3 text-sm" : "rounded-md border border-border p-3 text-sm"}><p>{call.state === "denied" ? "Call denied" : call.state === "expired" ? "Approval expired" : "Missed call"} · {new Date(call.createdAt).toLocaleString()}</p><p className="text-xs text-muted-foreground">No private task was connected.</p></div>;
+  return <div data-activity-kind="unapproved_call" className={presentation === "activity" ? "px-2 py-3 text-sm" : "rounded-md border border-border p-3 text-sm"}><p>{call.state === "denied" ? "Call denied" : call.state === "expired" ? "Approval expired" : "Missed call"} · {new Date(call.createdAt).toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE })}</p><p className="text-xs text-muted-foreground">No private task was connected.</p></div>;
 }
 export interface SpekoCallHistoryViewProps { entries?: VoiceCallHistoryEntry[]; unapprovedCalls?: VoiceUnapprovedCallHistoryEntry[]; loading?: boolean; error?: string; incomingError?: string; endError?: string; onRetry(): void; onEnd?(sessionId: string): void; endingSessionId?: string }
 export function SpekoCallHistoryView({ entries = [], unapprovedCalls = [], loading, error, incomingError, endError, onRetry, onEnd, endingSessionId }: SpekoCallHistoryViewProps) {

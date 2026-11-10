@@ -284,7 +284,7 @@ function makeContext(
     onToggleAutomation: () => {},
     onOpenRunDialog: () => {},
     runRoutinePending: false,
-    newTrigger: { kind: "schedule", cronExpression: "0 14 * * 1-5", signingMode: "bearer", replayWindowSec: "300" },
+    newTrigger: { kind: "schedule", cronExpression: "0 14 * * 1-5", timezone: "Asia/Seoul", signingMode: "bearer", replayWindowSec: "300" },
     setNewTrigger: () => {},
     createTrigger: stubMutation(),
     updateTrigger: stubMutation(),

@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Clock3, RefreshCw, Save, Trash2, Webhook, Zap } from "lucide-react";
-import type { RoutineTrigger } from "@paperclipai/shared";
+import { DEFAULT_TIME_ZONE, type RoutineTrigger } from "@paperclipai/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,20 +12,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ScheduleEditor } from "./ScheduleEditor";
+import { ScheduleEditor, getScheduleCronValidation } from "./ScheduleEditor";
+import { RoutineTimeZoneSelect } from "./RoutineTimeZoneSelect";
 import { buildRoutineTriggerPatch } from "../lib/routine-trigger-patch";
 import { describeCron } from "../lib/cron-readable";
 
 const signingModes = ["app_webhook", "bearer", "hmac_sha256", "github_hmac", "none"];
 const SIGNING_MODES_WITHOUT_REPLAY_WINDOW = new Set(["app_webhook", "bearer", "github_hmac", "fireflies_hmac", "none"]);
-
-function getLocalTimezone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone;
-  } catch {
-    return "UTC";
-  }
-}
 
 /**
  * Single trigger card with its own field-edit + save state (§3.2). Extracted
@@ -47,14 +40,21 @@ export function RoutineTriggerCard({
   const [draft, setDraft] = useState({
     label: trigger.label ?? "",
     cronExpression: trigger.cronExpression ?? "",
+    timezone: trigger.timezone ?? DEFAULT_TIME_ZONE,
     signingMode: trigger.signingMode ?? "bearer",
     replayWindowSec: String(trigger.replayWindowSec ?? 300),
   });
+  const [scheduleEditorValid, setScheduleEditorValid] = useState(true);
+  const scheduleValidation = useMemo(
+    () => trigger.kind === "schedule" ? getScheduleCronValidation(draft.cronExpression, draft.timezone) : null,
+    [draft.cronExpression, draft.timezone, trigger.kind],
+  );
 
   useEffect(() => {
     setDraft({
       label: trigger.label ?? "",
       cronExpression: trigger.cronExpression ?? "",
+      timezone: trigger.timezone ?? DEFAULT_TIME_ZONE,
       signingMode: trigger.signingMode ?? "bearer",
       replayWindowSec: String(trigger.replayWindowSec ?? 300),
     });
@@ -94,7 +94,7 @@ export function RoutineTriggerCard({
           ) : null}
           <span className="text-xs text-muted-foreground">
             {trigger.kind === "schedule" && trigger.nextRunAt
-              ? `Next: ${new Date(trigger.nextRunAt).toLocaleString()}`
+              ? `Next: ${new Date(trigger.nextRunAt).toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE })} KST`
               : trigger.kind === "webhook"
                 ? "Webhook"
                 : "API"}
@@ -126,10 +126,16 @@ export function RoutineTriggerCard({
             <Label className="text-xs">Schedule</Label>
             <ScheduleEditor
               value={draft.cronExpression}
+              timeZone={draft.timezone}
+              onValidityChange={setScheduleEditorValid}
               onChange={(cronExpression) =>
                 setDraft((current) => ({ ...current, cronExpression }))
               }
             />
+            <RoutineTimeZoneSelect value={draft.timezone} onChange={(timezone) => setDraft((current) => ({ ...current, timezone }))} />
+            {scheduleValidation && !scheduleValidation.valid && (
+              <p role="alert" className="text-xs text-destructive">{scheduleValidation.message}</p>
+            )}
           </div>
         )}
         {trigger.kind === "webhook" && (
@@ -191,8 +197,9 @@ export function RoutineTriggerCard({
           <Button
             variant="outline"
             size="sm"
+            disabled={trigger.kind === "schedule" && (!scheduleEditorValid || !scheduleValidation?.valid)}
             onClick={() =>
-              onSave(trigger.id, buildRoutineTriggerPatch(trigger, draft, getLocalTimezone()))
+              onSave(trigger.id, buildRoutineTriggerPatch(trigger, draft))
             }
           >
             <Save className="mr-1.5 h-3.5 w-3.5" />

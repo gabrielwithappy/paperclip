@@ -1,3 +1,4 @@
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { AgentCommentaryEntry, AgentCommentaryKind } from "@paperclipai/shared";
@@ -35,7 +36,7 @@ function CommentaryRow({ entry, onOpen }: { entry: AgentCommentaryEntry; onOpen:
           <p className="line-clamp-2 whitespace-pre-line break-words text-sm leading-relaxed text-foreground">{entry.preview.trim()}{entry.preview.length >= 280 ? "…" : ""}</p>
           {entry.task && <span className="truncate text-xs text-muted-foreground"><span className="font-mono">{entry.task.identifier ?? "Task"}</span> · {entry.task.title}</span>}
         </div>
-        <time dateTime={entry.createdAt} title={new Date(entry.createdAt).toLocaleString()} className="font-mono text-xs text-muted-foreground md:col-span-2 md:text-right">{relativeTime(entry.createdAt)}</time>
+        <time dateTime={entry.createdAt} title={new Date(entry.createdAt).toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE })} className="font-mono text-xs text-muted-foreground md:col-span-2 md:text-right">{relativeTime(entry.createdAt)}</time>
       </button>
     </li>
   );
@@ -58,7 +59,7 @@ function CommentaryDetail({ companyId, id, onClose, triggerRef }: { companyId: s
       }}>
         <DialogHeader className="shrink-0 pr-6">
           <DialogTitle>{entry?.kind === "complaint" ? "Complaint" : entry ? "Suggestion" : "Commentary"}</DialogTitle>
-          <DialogDescription>{entry ? `Submitted ${new Date(entry.createdAt).toLocaleString()}` : "Message details and source context."}</DialogDescription>
+          <DialogDescription>{entry ? `Submitted ${new Date(entry.createdAt).toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE })}` : "Message details and source context."}</DialogDescription>
         </DialogHeader>
         {detail.isPending ? <p role="status" className="text-sm text-muted-foreground">Loading message…</p> : detail.error ? (
           <div role="alert" className="flex flex-col items-start gap-3"><p className="text-sm text-destructive">{detail.error.message}</p><Button variant="outline" size="sm" onClick={() => void detail.refetch()}>Try again</Button></div>

@@ -50,6 +50,7 @@ import type {
   UpdateRoutineTrigger,
 } from "@paperclipai/shared";
 import {
+  DEFAULT_TIME_ZONE,
   WORKSPACE_BRANCH_ROUTINE_VARIABLE,
   getBuiltinRoutineVariableValues,
   extractRoutineVariableNames,
@@ -2422,7 +2423,7 @@ export function routineService(
 
       if (input.kind === "schedule") {
         assertScheduleCompatibleVariables(routine.variables ?? []);
-        const timeZone = input.timezone || "UTC";
+        const timeZone = input.timezone || DEFAULT_TIME_ZONE;
         assertTimeZone(timeZone);
         const error = validateCron(input.cronExpression);
         if (error) throw unprocessable(error);
@@ -2453,7 +2454,7 @@ export function routineService(
             enabled: input.enabled ?? true,
             setupPending: input.kind === "webhook" && input.setupPending === true,
             cronExpression: input.kind === "schedule" ? input.cronExpression : null,
-            timezone: input.kind === "schedule" ? (input.timezone || "UTC") : null,
+            timezone: input.kind === "schedule" ? (input.timezone || DEFAULT_TIME_ZONE) : null,
             nextRunAt,
             publicId,
             secretId,

@@ -1,3 +1,4 @@
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 /**
  * Work Timeline page (PAP-12424 / Phase C of PAP-12405).
  *
@@ -104,27 +105,25 @@ export async function loadTimelineWindow(
 }
 
 function dateInputValue(date: Date): string {
-  const yyyy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const dd = String(date.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
+  const parts = new Intl.DateTimeFormat("en-US", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: DEFAULT_TIME_ZONE }).formatToParts(date);
+  const part = (type: string) => parts.find((entry) => entry.type === type)?.value;
+  return `${part("year")}-${part("month")}-${part("day")}`;
 }
 
 function presetRange(preset: Exclude<RangePreset, "custom">, now = new Date()): DateRangeState {
-  const from = new Date(now);
-  const to = new Date(now);
+  const toDate = dateInputValue(now);
   if (preset === "today") {
-    return { fromDate: dateInputValue(from), toDate: dateInputValue(to) };
-  } else {
-    from.setDate(from.getDate() - (preset === "7d" ? 6 : 29));
+    return { fromDate: toDate, toDate };
   }
-  return { fromDate: dateInputValue(from), toDate: dateInputValue(to) };
+  const from = new Date(`${toDate}T00:00:00+09:00`);
+  from.setUTCDate(from.getUTCDate() - (preset === "7d" ? 6 : 29));
+  return { fromDate: dateInputValue(from), toDate };
 }
 
 function rangeWindow(range: DateRangeState): Pick<WorkTimelineParams, "from" | "to"> | null {
   if (!range.fromDate || !range.toDate) return null;
-  const from = new Date(`${range.fromDate}T00:00:00`);
-  const to = new Date(`${range.toDate}T23:59:59.999`);
+  const from = new Date(`${range.fromDate}T00:00:00+09:00`);
+  const to = new Date(`${range.toDate}T23:59:59.999+09:00`);
   if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from > to) return null;
   return { from: from.toISOString(), to: to.toISOString() };
 }
@@ -397,7 +396,7 @@ export function Timeline({ embedded = false }: { embedded?: boolean } = {}) {
 
   const rangeControls = (
     <label className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
-      Range
+      Range (KST)
       <Segmented
         value={rangePreset}
         onChange={(preset) => {
@@ -530,7 +529,7 @@ export function Timeline({ embedded = false }: { embedded?: boolean } = {}) {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs text-muted-foreground">
                 {data.spans.length} run{data.spans.length === 1 ? "" : "s"} ·{" "}
-                {new Date(data.window.from).toLocaleString()} to {new Date(data.window.to).toLocaleString()}
+                {new Date(data.window.from).toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE })} to {new Date(data.window.to).toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE })}
                 {data.window.capped ? " · window capped" : ""}
               </p>
               {rangeControls}

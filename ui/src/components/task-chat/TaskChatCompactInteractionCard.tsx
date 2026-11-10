@@ -1,3 +1,4 @@
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import { itemVerdictHref } from "@/lib/item-verdict-links";
 import { Link } from "@/lib/router";
 import {
@@ -548,7 +549,7 @@ function ReceiptDisclosure({
               Expires{" "}
               {new Date(
                 interaction.payload.toolAction.expiresAt,
-              ).toLocaleString()}
+              ).toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE })}
             </p>
             <div className="mt-2">
               <MarkdownBody externalReferences={externalReferences}>
@@ -585,7 +586,7 @@ function ReceiptDisclosure({
               <dd>
                 {new Date(
                   interaction.payload.secretProposal.expiresAt,
-                ).toLocaleString()}
+                ).toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE })}
               </dd>
             </div>
           </dl>
@@ -910,7 +911,7 @@ function ConfirmationCard({
               Expires{" "}
               {new Date(
                 interaction.payload.toolAction.expiresAt,
-              ).toLocaleString()}
+              ).toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE })}
             </span>
           </div>
           <MarkdownBody externalReferences={externalReferences}>
@@ -951,7 +952,7 @@ function ConfirmationCard({
             <dd>
               {new Date(
                 interaction.payload.secretProposal.expiresAt,
-              ).toLocaleString()}
+              ).toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE })}
             </dd>
           </div>
         </dl>

@@ -1,3 +1,4 @@
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import { AgentAvatar } from "@/components/AgentAvatar";
 import { useEffect, useMemo, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
@@ -274,7 +275,7 @@ function AuditRow({
         <time
           className="shrink-0 whitespace-nowrap text-xs text-muted-foreground"
           dateTime={record.createdAt}
-          title={new Date(record.createdAt).toLocaleString()}
+          title={new Date(record.createdAt).toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE })}
         >
           {relativeTime(record.createdAt)}
         </time>

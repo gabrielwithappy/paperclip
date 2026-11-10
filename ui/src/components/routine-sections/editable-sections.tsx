@@ -31,7 +31,7 @@ import { MarkdownEditor } from "../MarkdownEditor";
 import { RoutineVariablesEditor, RoutineVariablesHint } from "../RoutineVariablesEditor";
 import { EnvironmentVariablesEditor } from "../environment-variables-editor";
 import { useRoutineDetail } from "./context";
-import type { EnvBinding, RoutineDetail as RoutineDetailType } from "@paperclipai/shared";
+import { DEFAULT_TIME_ZONE, type EnvBinding, type RoutineDetail as RoutineDetailType } from "@paperclipai/shared";
 
 const concurrencyPolicyOptions = [
   {
@@ -128,7 +128,7 @@ export function OverviewSection({
       .filter((trigger) => trigger.kind === "schedule" && trigger.nextRunAt)
       .map((trigger) => new Date(trigger.nextRunAt as Date))
       .sort((a, b) => a.getTime() - b.getTime())[0];
-    return upcoming ? upcoming.toLocaleString() : null;
+    return upcoming ? upcoming.toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE }) : null;
   }, [routine.triggers]);
   const lastRun = (routineRuns ?? [])[0] ?? null;
   const recentActivity = (activity ?? []).slice(0, 5);
@@ -573,7 +573,7 @@ function NextFiresPreview({
       .filter((trigger) => trigger.kind === "schedule" && trigger.enabled && trigger.cronExpression)
       .map((trigger) => {
         const fires = nextCronFires(trigger.cronExpression, 5, {
-          timeZone: trigger.timezone ?? "UTC",
+          timeZone: trigger.timezone ?? DEFAULT_TIME_ZONE,
         });
         return { trigger, fires };
       })
@@ -581,7 +581,7 @@ function NextFiresPreview({
       .sort((a, b) => a.fires[0]!.getTime() - b.fires[0]!.getTime())[0];
     if (!schedule) return null;
     return {
-      timeZone: schedule.trigger.timezone ?? "UTC",
+      timeZone: schedule.trigger.timezone ?? DEFAULT_TIME_ZONE,
       entries: previewFirePolicies(schedule.fires, concurrencyPolicy),
     };
   }, [triggers, concurrencyPolicy]);

@@ -1,5 +1,5 @@
 import { agentAvatarUrl } from "@/lib/agent-avatar-url";
-import { resolveAgentAppearance } from "@paperclipai/shared";
+import { DEFAULT_TIME_ZONE, resolveAgentAppearance } from "@paperclipai/shared";
 /**
  * Work Timeline — custom-SVG Gantt (board-locked Direction C, PAP-12422).
  *
@@ -120,8 +120,9 @@ interface DragSelectionState {
 
 function fmtClock(ms: number): string {
   const d = new Date(ms);
-  const hasMinutes = d.getMinutes() !== 0;
+  const hasMinutes = new Intl.DateTimeFormat("en", { timeZone: DEFAULT_TIME_ZONE, minute: "2-digit" }).format(d) !== "00";
   return d.toLocaleTimeString("en-US", {
+    timeZone: DEFAULT_TIME_ZONE,
     hour: "numeric",
     minute: hasMinutes ? "2-digit" : undefined,
     hour12: true,
@@ -130,7 +131,7 @@ function fmtClock(ms: number): string {
 
 function fmtTick(ms: number, stepMs: number): string {
   const d = new Date(ms);
-  const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: DEFAULT_TIME_ZONE });
   if (stepMs >= 24 * 60 * 60 * 1000) {
     return date;
   }

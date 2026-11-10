@@ -1,3 +1,4 @@
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import { useSyncExternalStore } from "react";
 
 const listeners = new Set<() => void>();
@@ -25,13 +26,14 @@ export function coordinatorRelativeLabel(value: string | Date, clock: number) {
   if (elapsed < 3_600_000) return `${Math.floor(elapsed / 60_000)}m ago`;
   if (elapsed < 86_400_000) return `${Math.floor(elapsed / 3_600_000)}h ago`;
   if (elapsed < 604_800_000) return `${Math.floor(elapsed / 86_400_000)}d ago`;
-  return new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric", ...(new Date(value).getFullYear() !== new Date(clock).getFullYear() ? { year: "numeric" as const } : {}) });
+  const year = new Intl.DateTimeFormat("en", { year: "numeric", timeZone: DEFAULT_TIME_ZONE });
+  return new Date(value).toLocaleDateString(undefined, { timeZone: DEFAULT_TIME_ZONE, month: "short", day: "numeric", ...(year.format(new Date(value)) !== year.format(new Date(clock)) ? { year: "numeric" as const } : {}) });
 }
 export function CoordinatorRelativeTime({ value, className }: { value: string | Date; className?: string }) {
   const clock = useCoordinatorRelativeClock();
   const label = coordinatorRelativeLabel(value, clock);
   if (!label) return null;
   const date = new Date(value);
-  const exact = date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "long" });
+  const exact = date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "long", timeZone: DEFAULT_TIME_ZONE });
   return <time dateTime={date.toISOString()} title={exact} aria-label={exact} tabIndex={0} className={className}>{label}</time>;
 }

@@ -1,3 +1,4 @@
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import { createContext, useContext, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Mail, Paperclip } from "lucide-react";
@@ -67,7 +68,7 @@ export function EmailMessageCard({
           {message.direction === "inbound" ? "Email received" : "Email sent"}
         </span>
         <span className="text-xs text-muted-foreground">
-          {new Date(message.timestamp).toLocaleString()}
+          {new Date(message.timestamp).toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE })}
         </span>
       </div>
       <div className="space-y-1">

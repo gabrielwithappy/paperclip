@@ -82,18 +82,16 @@ describe("routine variable helpers", () => {
     expect(BUILTIN_ROUTINE_VARIABLE_NAMES.has("timestamp")).toBe(true);
   });
 
-  it("getBuiltinRoutineVariableValues returns date in YYYY-MM-DD format", () => {
-    const values = getBuiltinRoutineVariableValues();
-    expect(values.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(values.date).toBe(new Date().toISOString().slice(0, 10));
+  it("uses the KST calendar date across the UTC midnight boundary", () => {
+    const values = getBuiltinRoutineVariableValues(new Date("2026-04-28T15:17:00.000Z"));
+    expect(values.date).toBe("2026-04-29");
   });
 
-  it("getBuiltinRoutineVariableValues returns a human-readable timestamp with year, time, and UTC", () => {
-    const values = getBuiltinRoutineVariableValues();
-    const year = String(new Date().getUTCFullYear());
-    expect(values.timestamp).toContain(year);
-    expect(values.timestamp).toMatch(/\d{1,2}:\d{2}\s?(AM|PM)/);
-    expect(values.timestamp).toContain("UTC");
+  it("returns a human-readable KST timestamp", () => {
+    const values = getBuiltinRoutineVariableValues(new Date("2026-04-28T15:17:00.000Z"));
+    expect(values.timestamp).toContain("April 29, 2026");
+    expect(values.timestamp).toContain("12:17 AM");
+    expect(values.timestamp).toContain("KST");
   });
 
   it("excludes built-in variables from syncRoutineVariablesWithTemplate", () => {

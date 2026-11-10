@@ -15,10 +15,12 @@ import {
 
 function Harness({
   initial,
+  timeZone,
   onChange,
   onValidityChange,
 }: {
   initial: string;
+  timeZone?: string;
   onChange?: (value: string) => void;
   onValidityChange?: (valid: boolean) => void;
 }) {
@@ -26,6 +28,7 @@ function Harness({
   return (
     <ScheduleEditor
       value={value}
+      timeZone={timeZone}
       onValidityChange={onValidityChange}
       onChange={(cron) => {
         setValue(cron);
@@ -49,6 +52,14 @@ describe("ScheduleEditor cron helpers", () => {
   it("classifies unknown valid 5-field cron expressions as custom", () => {
     expect(parseCronToPreset("0 8-18/2 * * 1-5").preset).toBe("custom");
     expect(getScheduleCronValidation("0 8-18/2 * * 1-5").valid).toBe(true);
+  });
+
+  it("previews cron ticks in KST by default", () => {
+    const validation = getScheduleCronValidation("0 0 * * *");
+    expect(validation.valid).toBe(true);
+    expect(validation.nextFires.length).toBeGreaterThan(0);
+    const hour = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Seoul", hour: "2-digit", hourCycle: "h23" }).format(validation.nextFires[0]);
+    expect(hour).toBe("00");
   });
 
   it("still recognizes supported presets and emits their expected cron", () => {
@@ -94,6 +105,21 @@ describe("ScheduleEditor", () => {
     expect(cronInput()?.value).toBe("0 8-18/2 * * 1-5");
     expect(container.textContent).toContain("Valid cron.");
 
+    act(() => root.unmount());
+  });
+
+  it("rejects an invalid time zone for a preset schedule", () => {
+    const onValidityChange = vi.fn();
+    const root = createRoot(container);
+    act(() => {
+      root.render(<Harness initial="0 9 * * *" timeZone="Invalid/Zone" onValidityChange={onValidityChange} />);
+    });
+    expect(onValidityChange).toHaveBeenLastCalledWith(false);
+
+    act(() => {
+      root.render(<Harness initial="0 9 * * *" timeZone="Asia/Seoul" onValidityChange={onValidityChange} />);
+    });
+    expect(onValidityChange).toHaveBeenLastCalledWith(true);
     act(() => root.unmount());
   });
 

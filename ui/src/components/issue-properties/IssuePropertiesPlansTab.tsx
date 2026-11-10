@@ -1,3 +1,4 @@
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { Issue, IssueThreadInteraction } from "@paperclipai/shared";
@@ -81,6 +82,7 @@ export function IssuePropertiesPlansTab({ issue }: IssuePropertiesPlansTabProps)
         <section data-testid="issue-plan-document" className="space-y-2">
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             {`Revision ${planDocument.latestRevisionNumber ?? 1} · updated ${new Date(planDocument.updatedAt).toLocaleString([], {
+              timeZone: DEFAULT_TIME_ZONE,
               month: "short",
               day: "numeric",
               hour: "numeric",

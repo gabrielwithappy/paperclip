@@ -1,3 +1,4 @@
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import { useState } from "react";
 import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import type { AgentInstructionsFileDetail } from "@paperclipai/shared";
@@ -89,7 +90,7 @@ export function InstructionHistory({
                 </Button>
                 <span className="text-sm text-muted-foreground">
                   {revision.source} ·{" "}
-                  {new Date(revision.createdAt).toLocaleString()}
+                  {new Date(revision.createdAt).toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE })}
                   {revision.id === currentRevisionId ? " · Current" : ""}
                 </span>
               </div>

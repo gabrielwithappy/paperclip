@@ -1,4 +1,5 @@
 import { Sparkles } from "lucide-react";
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import { Link } from "@/lib/router";
 import { cn, relativeTime } from "@/lib/utils";
 import {
@@ -19,7 +20,7 @@ function isoOrLocaleString(value: string | null | undefined): string | null {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
+  return date.toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE });
 }
 
 function issueLink(id: string, identifier: string | null) {

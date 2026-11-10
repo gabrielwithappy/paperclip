@@ -32,10 +32,11 @@ import { DocumentAnnotationsCountChip, IssueDocumentAnnotations } from "../Issue
 import { MarkdownEditor } from "../MarkdownEditor";
 import { ScheduleEditor, getScheduleCronValidation } from "../ScheduleEditor";
 import { RoutineVariablesEditor, RoutineVariablesHint } from "../RoutineVariablesEditor";
+import { RoutineTimeZoneSelect } from "../RoutineTimeZoneSelect";
 import { RoutineTriggerCard } from "../RoutineTriggerCard";
 import { EnvironmentVariablesEditor } from "../environment-variables-editor";
 import { createDefaultNewTrigger, useRoutineDetail } from "./context";
-import type { EnvBinding, RoutineDetail as RoutineDetailType } from "@paperclipai/shared";
+import { DEFAULT_TIME_ZONE, type EnvBinding, type RoutineDetail as RoutineDetailType } from "@paperclipai/shared";
 
 const concurrencyPolicyOptions = [
   {
@@ -144,7 +145,7 @@ export function OverviewSection({
       .filter((trigger) => trigger.kind === "schedule" && trigger.nextRunAt)
       .map((trigger) => new Date(trigger.nextRunAt as Date))
       .sort((a, b) => a.getTime() - b.getTime())[0];
-    return upcoming ? upcoming.toLocaleString() : null;
+    return upcoming ? upcoming.toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE }) : null;
   }, [routine.triggers]);
   const boundSecrets = editDraft.env ? Object.keys(editDraft.env).length : 0;
   const lastRun = (routineRuns ?? [])[0] ?? null;
@@ -423,8 +424,8 @@ export function TriggersSection() {
   const [addOpen, setAddOpen] = useState(false);
   const [newScheduleEditorValid, setNewScheduleEditorValid] = useState(true);
   const newScheduleValidation = useMemo(
-    () => newTrigger.kind === "schedule" ? getScheduleCronValidation(newTrigger.cronExpression) : null,
-    [newTrigger.cronExpression, newTrigger.kind],
+    () => newTrigger.kind === "schedule" ? getScheduleCronValidation(newTrigger.cronExpression, newTrigger.timezone) : null,
+    [newTrigger.cronExpression, newTrigger.kind, newTrigger.timezone],
   );
   const addDisabled =
     createTrigger.isPending ||
@@ -491,11 +492,13 @@ export function TriggersSection() {
               <Label className="text-xs">Schedule</Label>
               <ScheduleEditor
                 value={newTrigger.cronExpression}
+                timeZone={newTrigger.timezone}
                 onChange={(cronExpression) =>
                   setNewTrigger((current) => ({ ...current, cronExpression }))
                 }
                 onValidityChange={setNewScheduleEditorValid}
               />
+              <RoutineTimeZoneSelect value={newTrigger.timezone} onChange={(timezone) => setNewTrigger((current) => ({ ...current, timezone }))} />
             </div>
           )}
           {newTrigger.kind === "webhook" && (
@@ -793,7 +796,7 @@ function NextFiresPreview({
       .filter((trigger) => trigger.kind === "schedule" && trigger.enabled && trigger.cronExpression)
       .map((trigger) => {
         const fires = nextCronFires(trigger.cronExpression, 5, {
-          timeZone: trigger.timezone ?? "UTC",
+          timeZone: trigger.timezone ?? DEFAULT_TIME_ZONE,
         });
         return { trigger, fires };
       })
@@ -801,7 +804,7 @@ function NextFiresPreview({
       .sort((a, b) => a.fires[0]!.getTime() - b.fires[0]!.getTime())[0];
     if (!schedule) return null;
     return {
-      timeZone: schedule.trigger.timezone ?? "UTC",
+      timeZone: schedule.trigger.timezone ?? DEFAULT_TIME_ZONE,
       entries: previewFirePolicies(schedule.fires, concurrencyPolicy),
     };
   }, [triggers, concurrencyPolicy]);

@@ -1,4 +1,4 @@
-import type { CompanySkillVersionSummary } from "@paperclipai/shared";
+import { DEFAULT_TIME_ZONE, type CompanySkillVersionSummary } from "@paperclipai/shared";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -16,7 +16,7 @@ const DEFAULT_LABEL = "Default — current (recommended)";
 /**
  * Render a bundled release's calendar date. Plain `YYYY-MM-DD` strings (like the
  * v7-roster manifest entry) render verbatim; full timestamps collapse to their
- * local calendar day so the picker reads `released 2026-07-21`.
+ * KST calendar day so the picker reads `released 2026-07-21`.
  */
 export function formatReleaseDate(value: CompanySkillVersionSummary["releasedAt"]): string | null {
   if (!value) return null;
@@ -24,9 +24,11 @@ export function formatReleaseDate(value: CompanySkillVersionSummary["releasedAt"
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
   const parsed = new Date(raw);
   if (Number.isNaN(parsed.getTime())) return null;
-  const year = parsed.getFullYear();
-  const month = String(parsed.getMonth() + 1).padStart(2, "0");
-  const day = String(parsed.getDate()).padStart(2, "0");
+  const parts = new Intl.DateTimeFormat("en-US", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: DEFAULT_TIME_ZONE }).formatToParts(parsed);
+  const part = (type: string) => parts.find((entry) => entry.type === type)?.value;
+  const year = part("year");
+  const month = part("month");
+  const day = part("day");
   return `${year}-${month}-${day}`;
 }
 

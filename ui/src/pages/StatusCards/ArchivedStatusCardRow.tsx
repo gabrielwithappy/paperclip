@@ -1,3 +1,4 @@
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 
@@ -10,7 +11,7 @@ import type { StatusCardView } from "./types";
 
 function shortDate(iso: string | null): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return new Date(iso).toLocaleDateString(undefined, { timeZone: DEFAULT_TIME_ZONE, month: "short", day: "numeric" });
 }
 
 export function ArchivedStatusCardRow({

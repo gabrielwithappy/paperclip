@@ -30,6 +30,7 @@ services:
       PORT: "3100"
       SERVE_UI: "true"
       PAPERCLIP_HOME: /paperclip
+      TZ: Asia/Seoul
       GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND: file
       PAPERCLIP_DEPLOYMENT_MODE: authenticated
       PAPERCLIP_DEPLOYMENT_EXPOSURE: private

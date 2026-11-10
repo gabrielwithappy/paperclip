@@ -1,3 +1,4 @@
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import { useQuery } from "@tanstack/react-query";
 import { grokBotApi } from "@/api/grokBot";
 import { Link } from "@/lib/router";
@@ -10,7 +11,7 @@ export function GrokBotWorkSummary({ companyId, agentId }: { companyId: string; 
     <p>{data?.recoveryNeeded ? "Recovery needed" : binding?.assignment?.status === "offered" ? "Awaiting acknowledgement" : binding?.assignment ? "Working in Grok Bot" : routine?.verified ? "No active Paperclip work session" : "Connection setup incomplete"}</p>
     {data?.currentTask && <Link className="underline" to={`/issues/${data.currentTask.id}`}>{data.currentTask.identifier}: {data.currentTask.title}</Link>}
     <p className="text-muted-foreground">Queued tasks: {data?.queuedTaskCount ?? "Checking…"}</p>
-    <p className="text-muted-foreground">Last contact: {routine?.lastContactAt ? new Date(routine.lastContactAt).toLocaleString() : "Not observed"}</p>
+    <p className="text-muted-foreground">Last contact: {routine?.lastContactAt ? new Date(routine.lastContactAt).toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE }) : "Not observed"}</p>
     <p className="text-xs text-muted-foreground">Shows Paperclip-reported activity. Open the Grok Bot desktop app to inspect the Bot’s complete activity.</p>
   </div>;
 }

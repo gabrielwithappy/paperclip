@@ -1,3 +1,5 @@
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
+import { tomorrowMorningKstIso } from "../lib/kst-calendar";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlarmClock, CalendarClock, ChevronDown, Loader2, Plus, UserPlus, X } from "lucide-react";
@@ -29,12 +31,7 @@ const DAY_MS = 24 * HOUR_MS;
 const SNOOZE_PRESETS: ReadonlyArray<{ label: string; resolve: () => string }> = [
   { label: "1 hour", resolve: () => new Date(Date.now() + HOUR_MS).toISOString() },
   { label: "4 hours", resolve: () => new Date(Date.now() + 4 * HOUR_MS).toISOString() },
-  { label: "Tomorrow", resolve: () => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    d.setHours(9, 0, 0, 0);
-    return d.toISOString();
-  } },
+  { label: "Tomorrow", resolve: tomorrowMorningKstIso },
   { label: "Next week", resolve: () => new Date(Date.now() + 7 * DAY_MS).toISOString() },
 ];
 
@@ -232,7 +229,7 @@ export function DecisionTriageStrip({ item, companyId, agents }: DecisionTriageS
         {item.snoozedUntil ? (
           <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
             <AlarmClock className="h-3.5 w-3.5" />
-            Snoozed until {new Date(item.snoozedUntil).toLocaleString()}
+            Snoozed until {new Date(item.snoozedUntil).toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE })}
             <button
               type="button"
               className="text-muted-foreground hover:text-foreground"

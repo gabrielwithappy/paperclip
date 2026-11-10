@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { ChevronRight } from "lucide-react";
-import type { ActivityEvent } from "@paperclipai/shared";
+import { DEFAULT_TIME_ZONE, type ActivityEvent } from "@paperclipai/shared";
 import { cn } from "@/lib/utils";
 
 export type RoutineActivityEvent = Pick<ActivityEvent, "id" | "action" | "details" | "createdAt">;
 
 function formatTime(value: string | Date): string {
   try {
-    return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZone: DEFAULT_TIME_ZONE });
   } catch {
     return String(value);
   }

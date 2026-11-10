@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, Plus, Webhook } from "lucide-react";
-import type { RoutineTrigger } from "@paperclipai/shared";
+import { DEFAULT_TIME_ZONE, type RoutineTrigger } from "@paperclipai/shared";
 import { useSearchParams } from "@/lib/router";
 import { routinesApi } from "@/api/routines";
 import { queryKeys } from "@/lib/queryKeys";
@@ -17,6 +17,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { ScheduleEditor } from "@/components/ScheduleEditor";
+import { RoutineTimeZoneSelect } from "@/components/RoutineTimeZoneSelect";
 import { useRoutineDetail } from "@/components/routine-sections/context";
 import { RoutineTriggerCard } from "./TriggerCard";
 import {
@@ -240,7 +241,7 @@ export function RoutineTriggers() {
                 : !trigger.enabled
                   ? "Paused"
                   : trigger.kind === "schedule"
-                    ? (trigger.timezone ?? "UTC")
+                    ? (trigger.timezone ?? DEFAULT_TIME_ZONE)
                     : trigger.kind === "api"
                       ? "Run through the API"
                       : trigger.lastWebhookDelivery?.status === "rejected"
@@ -348,7 +349,7 @@ function TriggerSetup({
     return (
       saved ?? {
         ...defaultTriggerDraft,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        timezone: DEFAULT_TIME_ZONE,
         created: false,
       }
     );
@@ -451,7 +452,7 @@ function ScheduleSettings({
   const [cronExpression, setCron] = useState(
     trigger.cronExpression ?? "0 9 * * *",
   );
-  const [timezone, setTimezone] = useState(trigger.timezone ?? "UTC");
+  const [timezone, setTimezone] = useState(trigger.timezone ?? DEFAULT_TIME_ZONE);
   const [valid, setValid] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -459,16 +460,12 @@ function ScheduleSettings({
     <fieldset disabled={busy} className="min-w-0 space-y-4">
       <ScheduleEditor
         value={cronExpression}
+        timeZone={timezone}
         onChange={setCron}
         onValidityChange={setValid}
       />
-      <Label>
-        Time zone
-        <Input
-          value={timezone}
-          onChange={(event) => setTimezone(event.target.value)}
-        />
-      </Label>
+      <Label>Time zone</Label>
+      <RoutineTimeZoneSelect value={timezone} onChange={setTimezone} />
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}

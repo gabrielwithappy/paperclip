@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check, Link2, Lock, Play, Plus, RefreshCw, RotateCcw, Terminal, Trash2, X } from "lucide-react";
 import { FitAddon } from "@xterm/addon-fit";
@@ -313,7 +314,7 @@ function readEnvironmentSandboxProvider(environment: Environment): string | null
 function formatDateTime(value: string | Date | null | undefined): string | null {
   if (!value) return null;
   const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date.toLocaleString();
+  return Number.isNaN(date.getTime()) ? null : date.toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE });
 }
 
 function formatShortId(value: string): string {

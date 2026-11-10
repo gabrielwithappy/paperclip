@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TaskChatThread } from "./TaskChatThread";
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import { IssueChatThread } from "./IssueChatThread";
 import type {
   Agent,
@@ -2519,7 +2520,7 @@ describe("TaskChatThread runtime transcript selection", () => {
         ?.textContent,
     ).toContain(repeated);
     expect(container.textContent).toContain(
-      new Date("2026-08-25T17:59:32.000Z").toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+      new Date("2026-08-25T17:59:32.000Z").toLocaleTimeString([], { hour: "numeric", minute: "2-digit", timeZone: DEFAULT_TIME_ZONE }),
     );
     const turnHeaders = Array.from(
       container.querySelectorAll('[data-testid="task-chat-turn-summary"]'),
@@ -2656,7 +2657,7 @@ describe("TaskChatThread runtime transcript selection", () => {
         ?.textContent,
     ).toContain("Continued after steering · Working for");
     expect(container.textContent).toContain(
-      new Date("2026-08-25T17:59:32.000Z").toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+      new Date("2026-08-25T17:59:32.000Z").toLocaleTimeString([], { hour: "numeric", minute: "2-digit", timeZone: DEFAULT_TIME_ZONE }),
     );
   });
 

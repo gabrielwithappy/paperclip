@@ -1,3 +1,4 @@
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Shield, ShieldCheck } from "lucide-react";
@@ -252,7 +253,7 @@ export function InstanceAccess() {
                         </div>
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {new Date(membership.updatedAt).toLocaleDateString()}
+                        {new Date(membership.updatedAt).toLocaleDateString(undefined, { timeZone: DEFAULT_TIME_ZONE })}
                       </div>
                     </div>
                   ))}

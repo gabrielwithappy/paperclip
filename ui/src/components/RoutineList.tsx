@@ -1,4 +1,4 @@
-import type { AgentAppearance } from "@paperclipai/shared";
+import { DEFAULT_TIME_ZONE, type AgentAppearance } from "@paperclipai/shared";
 import { AgentAvatar } from "@/components/AgentAvatar";
 import type { ReactNode } from "react";
 import { MoreHorizontal, Play } from "lucide-react";
@@ -39,7 +39,7 @@ export type RoutineListRowItem = {
 
 export function formatLastRunTimestamp(value: Date | string | null | undefined) {
   if (!value) return "Never";
-  return new Date(value).toLocaleString();
+  return new Date(value).toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE });
 }
 
 export function formatRoutineRunStatus(value: string | null | undefined) {

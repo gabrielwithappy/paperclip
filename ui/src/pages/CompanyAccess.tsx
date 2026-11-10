@@ -1,3 +1,4 @@
+import { DEFAULT_TIME_ZONE } from "@paperclipai/shared";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -345,7 +346,7 @@ export function CompanyAccess() {
                       ? `${request.invite.allowedJoinTypes} join invite${request.invite.humanRole ? ` • default role ${request.invite.humanRole}` : ""}`
                       : "Invite metadata unavailable"
                   }
-                  detail={`Submitted ${new Date(request.createdAt).toLocaleString()}`}
+                  detail={`Submitted ${new Date(request.createdAt).toLocaleString(undefined, { timeZone: DEFAULT_TIME_ZONE })}`}
                   approveLabel="Approve human"
                   rejectLabel="Reject human"
                   disabled={joinRequestActionPending}
