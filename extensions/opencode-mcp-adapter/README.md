@@ -78,6 +78,24 @@ can use the existing adapter install UI/API with this directory's absolute
 `localPath`, or install a packed/published package. Use a private fixture instance
 first; cloud-managed instances prohibit external adapter code installation.
 
+The current install endpoint is `POST /api/adapters/install`. Its request body
+for a local package is:
+
+```json
+{
+  "packageName": "/absolute/path/to/extensions/opencode-mcp-adapter",
+  "isLocalPath": true
+}
+```
+
+`localPath` is stored in the installation record; it is not the request field.
+Use the existing authenticated instance-admin session. Activation uses
+`PATCH /api/adapters/opencode_local/override` with `{"paused":false}`.
+Keep the source directory, its dependencies and built `dist` files available.
+Git preserves the source, but excludes dependencies, build files and the
+instance's installation registration. A fresh checkout needs build/dependency
+preparation and a separate instance installation.
+
 Installation records and API `source: external` alone do not prove that the external
 implementation loaded. Run environment diagnostics and confirm
 `opencode_mcp_bridge_build` reports `0.1.0`. Check again after a cold restart and
@@ -106,9 +124,15 @@ its token in commands, the package, or issue comments.
   Todoist mutations occur.
 
 These are local protocol/adapter tests, not a full Paperclip task acceptance run.
-Live plugin install/cold-restart/rollback, task-bound approval→approve-and-run→resume
-exactly-once, company-isolation end-to-end, and live Todoist acceptance remain
-operator qualification steps. Existing host enforcement is reused, not replaced.
+On 2026-11-15 the current self-hosted instance additionally passed authenticated
+API installation/activation, override pause/resume, cold-restart persistence,
+the external build diagnostic and an actual CLI hello probe through the server.
+A server-side Todoist `get-overview` read also succeeded. The installation record
+is outside Git; this evidence does not make a fresh checkout installed.
+Task-bound approval→approve-and-run→resume exactly-once, company-isolation
+end-to-end, uninstall/reinstall recovery, and a full OpenCode agent task using
+live Todoist remain separate qualification steps. Existing host enforcement is
+reused, not replaced. See the repository's implementation plan for the evidence record.
 
 The sidecar cleanup uses `finally`; **host SIGKILL, machine crash or power loss can
 leave 0600 files in the temporary directory**. There is no automatic age-based

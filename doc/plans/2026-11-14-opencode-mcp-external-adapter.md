@@ -1,8 +1,8 @@
 ---
 status: active
 priority: high
-updated: 2026-11-14T22:35:59+09:00
-authorization: Implementation authorized; production installation excluded
+updated: 2026-11-15T00:42:13+09:00
+authorization: Implementation, local instance installation/activation, commit and push authorized
 reviewed_by: [review_opencode_mcp_plan]
 plan_review: complete
 ---
@@ -12,7 +12,9 @@ plan_review: complete
 ## 목표와 승인 범위
 
 Paperclip에서 연결·인증하고 에이전트에 허용한 MCP 도구를 OpenCode 에이전트가 실제로 호출하게 한다.
-사용자가 후속 메시지로 플러그인 구현을 승인했다. 구현·로컬 fixture 검증·패키징을 진행한다. 운영 설치·활성화, 실제 에이전트 재실행, 커밋·푸시·배포는 이 승인에 포함하지 않는다.
+사용자가 후속 메시지로 구현에 이어 현재 로컬 인스턴스의 설치·활성화와 커밋·푸시까지 승인했다.
+기존 회사·에이전트 설정은 유지하고, 관리자 API 설치와 재시작·환경 진단·읽기 호출을 검증한다.
+기존 사용자 작업을 새 에이전트 실행으로 재개하거나 외부 데이터를 변경하는 작업은 수행하지 않는다.
 
 기본 방향은 별도 패키지로 배포하는 **Paperclip 외부 어댑터**다. OpenCode 자체 플러그인 개발과
 Paperclip의 일반 앱 플러그인 개발은 이번 구현 방식에 포함하지 않는다.
@@ -213,9 +215,10 @@ counter를 두어 승인 후 서버의 approve-and-run 1회와 에이전트 재�
 
 - Completed: 외부 패키지 구현, private 파일 참조 타당성, 로컬 base execute와 실제 CLI 호출·세션 검증,
   타입 검사·빌드·패키지 구성 및 실제 host loader 확인, 독립 코드 리뷰와 지적 반영을 완료했다.
-- Remaining: 운영 설치 전 격리 Paperclip 인스턴스의 task-bound 승인·회사 경계 E2E, cold restart/fallback,
-  설치·롤백과 실제 Todoist 인수 검증. SIGKILL 잔여 인증 파일의 자동 회수는 미구현이다.
-- Next concrete action: 운영 적용을 진행할 때 격리 self-hosted 인스턴스에 이 패키지를 설치해 승인·권한·재시작·롤백 경로를 검증한다.
+- Remaining: task-bound 승인·회사 경계 E2E, uninstall/reinstall 복구와 실제 OpenCode 에이전트의 Todoist 작업 인수 검증.
+  현재 로컬 인스턴스 설치·활성화·cold restart와 서버 측 Todoist 읽기는 아래 기록대로 통과했다.
+  SIGKILL 잔여 인증 파일의 자동 회수는 미구현이다.
+- Next concrete action: 다음 사용자 Todoist 작업에서 새 OpenCode 실행이 실제 커넥터 도구를 사용하는지 확인하고 task-bound 인수 증거를 추가한다.
 
 ## 리뷰 기록
 
@@ -273,3 +276,32 @@ counter를 두어 승인 후 서버의 approve-and-run 1회와 에이전트 재�
 최종 로컬 검증: `npm run typecheck`, `npm run build`, `npm test` (12 passed/0 failed),
 `npm pack --dry-run --json`, 실제 host loader 호출, `node scripts/check-maps.mjs`,
 `git diff --check` 및 새 패키지 whitespace 검사 통과. 운영 인스턴스는 변경하지 않았다.
+
+## 2026-11-15 로컬 인스턴스 설치·활성화
+
+사용자가 설치·활성화와 커밋·푸시를 명시 승인했다. 이번 작업은 기존 인스턴스를 대상으로 했으며
+새 공급자 인증이나 사용자 작업 재실행은 수행하지 않았다.
+
+- 기준 소스는 `91607401f3`, OpenCode CLI 1.18.9, 플러그인 0.1.0이다. 저장된 CLI 관리자 자격증명으로
+  기존 API를 사용했으며 토큰을 출력하거나 코드에 저장하지 않았다.
+- 작업 전 active/queued run은 0, OpenCode agent 5개는 idle이며 명시적 filesystem/network scope와
+  저장된 remote default environment는 없었다. live adapter는 builtin이었다.
+- 기존 task-drain API로 유입을 막고 app/callback을 정상 정지했다. 로컬 서비스 backup helper로
+  DB/HOME/config 복구본을 만들고 archive listing과 SHA256 4개를 확인했다. 복원 리허설은 수행하지 않았다.
+  private 복구 디렉터리는 `~/.local/state/paperclip-migration/20261115-opencode-mcp-plugin/`이며 Git 제외다.
+- 플러그인 typecheck/build와 테스트 12개를 다시 수행해 모두 통과했다.
+- app 복구 후 `POST /api/adapters/install`에 `packageName`=현재 패키지 절대경로,
+  `isLocalPath:true`를 보내 설치했다. 등록 버전 0.1.0, first install requiresRestart:false였다.
+  `PATCH /api/adapters/opencode_local/override`의 paused:false로 활성 상태를 확인했다.
+- 실제 회사 범위의 test-environment API에 로컬 model fixture를 전달했다. 선택된 외부 factory가
+  `opencode_mcp_bridge_build`=0.1.0과 CLI 호환성 및 `opencode_hello_probe_passed`를 반환했고 status:pass였다.
+  이 테스트는 외부 유료 모델 대신 로컬 deterministic 응답을 사용했다.
+- 기존 override API로 paused:true → false를 확인했다. activeRuns/pendingWakes가 0인 상태에서
+  관리 서비스로 cold restart한 뒤 source:external, version:0.1.0, overridePaused:false와 환경 진단 pass를 재확인했다.
+  설치 레코드만으로 판단하지 않고 재시작 후 실제 factory 진단과 CLI probe를 다시 실행했다.
+- 대상 하루 에이전트 권한으로 기존 Todoist 연결의 Test API `get-overview`가 allowed 및 실제 result를 반환했다.
+  이것은 server-side provider read이며 full OpenCode agent/task E2E의 증거로 간주하지 않는다.
+- app과 Slack callback은 active/running, board HTTP 200, health ok/bootstrap ready다.
+  재시작 후 drain:false, activeRuns:0, pendingWakes:0을 확인했다. 사용자 agent 설정/권한/계정은 변경하지 않았다.
+- README에 실제 install request 형식과 설치 등록·dist·dependencies의 Git 외부 수명을 보완했다.
+  커밋은 문서 기록이며 설치 등록 그 자체는 현재 인스턴스 HOME에 유지된다.
