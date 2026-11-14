@@ -280,6 +280,7 @@ function StandardAppDetail({ renderActions, renderAgentSettings, renderConnectio
   const disconnectRemote = useMutation({
     mutationFn: () => toolsApi.archiveConnection(connectionId),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ai-connections", selectedCompanyId!] });
       queryClient.invalidateQueries({ queryKey: queryKeys.tools.connections(selectedCompanyId!) });
       queryClient.invalidateQueries({ queryKey: queryKeys.tools.connection(connectionId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.tools.applications(selectedCompanyId!) });

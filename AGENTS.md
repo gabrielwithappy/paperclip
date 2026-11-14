@@ -267,3 +267,12 @@ A change is done when all are true:
 ## Design system
 
 `DESIGN.md` at the repo root is the source of truth for UI design decisions. The token-only rule applies to all `ui/` changes: every color, spacing, radius, type, shadow, and motion value in `ui/src/components/**` and `ui/src/pages/**` comes from the token layer in `ui/src/index.css` — no hex, raw px, arbitrary Tailwind bracket values, or raw `font-size`/`fontSize` declarations in components, outside the documented allowlist in `ui/src/index.css`. Run `pnpm check:token-gates` (`scripts/check-token-gates.mjs`) before committing UI changes — it fails on any violation not covered by that allowlist.
+
+
+<!-- agentos:harness:start -->
+Read `.agents/skills/harness/guidance/SKILL.md` for AgentOS guidance, and `.agents/skills/harness/writing-plans/SKILL.md` when planning. Keep project-specific rules and work records outside `.agents/skills/harness/`.
+<!-- agentos:harness:end -->
+
+<!-- agentos:catalog:start -->
+Read `.agentos/catalog.md` to find installed skills and agent roles. Read `.agentos/project/project.md` for project context when present.
+<!-- agentos:catalog:end -->

@@ -1373,7 +1373,9 @@ describe("Connectors landing page", () => {
     listApplicationsMock.mockResolvedValue({ applications: [application()] });
     listConnectionsMock.mockResolvedValue({ connections: [connection()] });
 
-    await renderBrowse();
+    const client = await renderBrowse();
+    const modelChoicesKey = ["ai-connections", "company-1", "agent-1"];
+    client.setQueryData(modelChoicesKey, { connections: [{ id: "conn-notion" }] });
 
     const menuTrigger = container.querySelector<HTMLButtonElement>(
       'button[aria-label="Manage devinfoley@gmail.com connection"]',
@@ -1414,6 +1416,7 @@ describe("Connectors landing page", () => {
     await flushReact();
 
     expect(archiveConnectionMock).toHaveBeenCalledWith("conn-notion");
+    expect(client.getQueryState(modelChoicesKey)?.isInvalidated).toBe(true);
     expect(pushToastMock).toHaveBeenCalledWith(
       expect.objectContaining({
         title: "Connection removed",

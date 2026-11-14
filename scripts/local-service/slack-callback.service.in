@@ -1,0 +1,15 @@
+[Unit]
+Description=Paperclip local Slack callback
+After=network.target paperclipai.service
+
+[Service]
+Type=simple
+ExecStart="@LAUNCHER@" callback
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=35
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

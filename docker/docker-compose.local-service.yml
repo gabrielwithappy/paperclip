@@ -1,0 +1,8 @@
+# Apply ONLY after the Docker app/callback are stopped and final backups exist:
+# docker compose -p paperclip-private-slack --env-file docker/.env.private-slack \
+#   -f docker/docker-compose.private-slack.yml -f docker/docker-compose.local-service.yml up -d --no-deps db
+# Preserve the original project name and pgdata volume. Never use down -v.
+services:
+  db:
+    ports:
+      - "127.0.0.1:${PAPERCLIP_LOCAL_DB_PORT:-55432}:5432"

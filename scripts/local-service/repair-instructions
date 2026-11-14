@@ -1,0 +1,9 @@
+#!/bin/bash
+set -euo pipefail
+umask 077
+config_dir="${PAPERCLIP_LOCAL_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/paperclip/local-service}"
+IFS= read -r node_binary < "$config_dir/node-path"
+[[ "$node_binary" = /* && -x "$node_binary" ]] || { echo 'Invalid pinned Node executable' >&2; exit 1; }
+repo="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+exec "$node_binary" --env-file="$config_dir/runtime.env" "$repo/cli/node_modules/tsx/dist/cli.mjs" \
+  "$repo/server/scripts/repair-migrated-instructions.ts" "$@"

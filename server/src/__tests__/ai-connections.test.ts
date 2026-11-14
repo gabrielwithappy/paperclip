@@ -78,6 +78,18 @@ beforeAll(async () => {
 afterAll(async () => { await database?.cleanup(); vi.unstubAllEnvs(); if (home) await rm(home, { recursive: true, force: true }); });
 
 describe("managed AI connections", () => {
+  it("omits archived accounts from model connection choices while rejecting their saved bindings", async () => {
+    const owner = "archived-model-connection-owner";
+    await db.insert(companyMemberships).values({ companyId, principalId: owner, principalType: "user", status: "active", membershipRole: "member" });
+    const archived = await create(owner, "Archived model choice");
+    const active = await create(owner, "Active model choice");
+    await db.update(toolConnections).set({ status: "archived", enabled: false }).where(eq(toolConnections.id, archived.connectionId));
+    const choices = await service.list(companyId, owner);
+    expect(choices.some(account => account.id === archived.connectionId)).toBe(false);
+    expect(choices.some(account => account.id === active.connectionId)).toBe(true);
+    await expect(service.select({ ...input, userId: owner, binding: { ...binding, mode: "delegated", ...archived } })).rejects.toThrow();
+    expect(await service.list(otherCompanyId, owner)).toEqual([]);
+  });
   it.each([
     { provider: "openrouter", envKey: "OPENROUTER_API_KEY", routed: false },
     { provider: "openrouter", envKey: "OPENROUTER_API_KEY", routed: true },

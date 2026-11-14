@@ -1,0 +1,46 @@
+{
+  "skills": [
+    {
+      "name": "graphify",
+      "version": "1.1.0",
+      "summary": "Explore codebases, trace call paths, analyze refactoring blast radius (affected), and perform zero-cost AST graph updates for development tasks.",
+      "source_path": ".agents/skills/graphify",
+      "install_path": ".agents/skills/graphify",
+      "category": "software-development",
+      "license": "MIT",
+      "kind": "skills"
+    },
+    {
+      "name": "harness",
+      "version": "2.0.0",
+      "summary": "Core AgentOS operating rules for establishing intent early, planning substantial work, executing autonomously, and reviewing proportionally.",
+      "source_path": ".agents/skills/harness/guidance",
+      "install_path": ".agents/skills/harness/guidance",
+      "category": "harness",
+      "install_policy": "required",
+      "license": "AgentOS project license",
+      "kind": "skills"
+    },
+    {
+      "name": "project-document-bootstrap",
+      "version": "1.0.0",
+      "summary": "Bootstrap structured project documentation profiles (index, business case, charter, scope, system contract, risk, team agreement, decisions, implementation requirements, and RTM).",
+      "source_path": ".agents/skills/project-document-bootstrap",
+      "install_path": ".agents/skills/project-document-bootstrap",
+      "category": "software-development",
+      "license": "MIT",
+      "kind": "skills"
+    },
+    {
+      "name": "writing-plans",
+      "version": "1.0.0",
+      "summary": "Creates and updates project work documents to coordinate multi-step tasks and maintain cross-session context.",
+      "source_path": ".agents/skills/harness/writing-plans",
+      "install_path": ".agents/skills/harness/writing-plans",
+      "category": "harness",
+      "install_policy": "required",
+      "license": "MIT",
+      "kind": "skills"
+    }
+  ]
+}

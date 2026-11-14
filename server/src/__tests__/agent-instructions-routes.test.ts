@@ -1,4 +1,9 @@
 import express from "express";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { planInstructionRelocation } from "../lib/migrated-instructions.js";
+import { resolveManagedInstructionsRoot } from "../services/agent-instructions.js";
 import request from "supertest";
 import { Readable } from "node:stream";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -660,6 +665,50 @@ describe("agent instructions bundle routes", () => {
       expect([400, 422]).toContain(res.status);
     }
     expect(mockInstructionRevisions.commit).not.toHaveBeenCalled();
+  });
+
+  it("allows the same company admin to save OpenCode only after explicit migrated-location repair", async () => {
+    const home = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "route-relocation-")));
+    const previousHome = process.env.PAPERCLIP_HOME;
+    const previousInstance = process.env.PAPERCLIP_INSTANCE_ID;
+    process.env.PAPERCLIP_HOME = home;
+    process.env.PAPERCLIP_INSTANCE_ID = "default";
+    try {
+      const source = "/old/instances/default";
+      const original = makeAgent();
+      const oldRoot = `${source}/companies/${original.companyId}/agents/${original.id}/instructions`;
+      const agent = { ...original, adapterConfig: {
+        instructionsBundleMode: "managed", instructionsRootPath: oldRoot,
+        instructionsEntryFile: "AGENTS.md", instructionsFilePath: `${oldRoot}/AGENTS.md`,
+      } };
+      const root = resolveManagedInstructionsRoot(agent);
+      await fs.mkdir(root, { recursive: true });
+      await fs.writeFile(path.join(root, "AGENTS.md"), "# Migrated instructions\n");
+      mockAgentService.getById.mockResolvedValue(agent);
+      const app = await createApp({
+        type: "board", userId: "company-admin", companyIds: ["company-1"],
+        memberships: [{ companyId: "company-1", status: "active", membershipRole: "admin" }],
+        source: "session", isInstanceAdmin: false,
+      });
+      const save = () => requestApp(app, baseUrl => request(baseUrl)
+        .patch(`/api/agents/${agent.id}`).send({adapterType: "opencode_local", adapterConfig: {model: "paperclip/nvidia/test-model"}}));
+      const before = await save();
+      expect(before.status).toBe(403);
+      expect(before.body.error).toContain("Instance admin");
+      expect(mockAgentService.update).not.toHaveBeenCalled();
+      const repaired = await planInstructionRelocation(agent, source);
+      mockAgentService.getById.mockResolvedValue({...agent, adapterConfig: repaired.nextConfig});
+      const after = await save();
+      expect(after.status, JSON.stringify(after.body)).toBe(200);
+      expect(mockAgentService.update).toHaveBeenCalledWith(agent.id,
+        expect.objectContaining({adapterType: "opencode_local", adapterConfig: expect.objectContaining({
+          instructionsFilePath: path.join(root, "AGENTS.md"), model: "paperclip/nvidia/test-model",
+        })}), expect.anything());
+    } finally {
+      if (previousHome === undefined) delete process.env.PAPERCLIP_HOME; else process.env.PAPERCLIP_HOME = previousHome;
+      if (previousInstance === undefined) delete process.env.PAPERCLIP_INSTANCE_ID; else process.env.PAPERCLIP_INSTANCE_ID = previousInstance;
+      await fs.rm(home, {recursive: true, force: true});
+    }
   });
 
   it("preserves managed instructions config when switching adapters", async () => {

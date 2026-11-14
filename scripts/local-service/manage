@@ -1,0 +1,13 @@
+#!/bin/bash
+set -euo pipefail
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+case "${1:-}" in
+  install) shift; exec "$script_dir/launcher" service install --no-start-now --json "$@" ;;
+  start|stop|status|logs|uninstall) exec "$script_dir/launcher" service "$@" ;;
+  restart)
+    # Use only after draining and stopping writers; ordinary service restart
+    # can adopt active runs and is unsuitable across dependency/schema updates.
+    "$script_dir/launcher" service stop
+    exec "$script_dir/launcher" service start ;;
+  *) echo 'Usage: manage {install|start|stop|restart|status|logs|uninstall} [CLI options]' >&2; exit 2 ;;
+esac

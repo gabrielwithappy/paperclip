@@ -136,6 +136,9 @@ export function aiConnectionService(db: Db) {
           ),
       ]);
     return accounts.flatMap(({ connection, grant }) => {
+      // Removal retains the connection for history and stale saved bindings,
+      // but it must not remain an option in model account selectors.
+      if (connection.status === "archived") return [];
       const metadata = aiConnectionMetadataSchema.safeParse(
         connection.config.ai,
       );

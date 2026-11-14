@@ -1,0 +1,31 @@
+#!/bin/bash
+set -euo pipefail
+repo="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$repo"
+[[ $# = 1 && "$1" = /* && -f "$1/backup-complete" ]] || {
+  echo 'Usage: prepare /absolute/verified-recovery-directory (run backup first)' >&2; exit 2;
+}
+[[ "$(docker inspect -f '{{.State.Running}}' paperclip-private-slack-server-1)" = false ]] || {
+  echo 'Docker app must stay stopped during install/build' >&2; exit 1;
+}
+if ss -H -ltn 'sport = :3110' | read -r _; then
+  echo 'Stop the local app before changing the checkout or dependencies' >&2; exit 1
+fi
+config_dir="${PAPERCLIP_LOCAL_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/paperclip/local-service}"
+IFS= read -r node_binary < "$config_dir/node-path"
+[[ "$node_binary" = /* && -x "$node_binary" ]] || exit 1
+export PATH="$(dirname -- "$node_binary"):$PATH"
+(cd "$1" && sha256sum -c SHA256SUMS)
+pnpm install --frozen-lockfile
+pnpm -r typecheck
+pnpm test:run
+pnpm build
+# Source CLI startup additionally requires these workspace runtime artifacts.
+node scripts/ensure-plugin-build-deps.mjs
+pnpm --filter @paperclipai/server prepare:ui-dist
+cmp ui/dist/index.html server/ui-dist/index.html
+node --test scripts/local-service/slack-callback.test.mjs
+pnpm exec vitest run cli/src/__tests__/service-manager.test.ts \
+  cli/src/__tests__/onboard-service.test.ts cli/src/__tests__/service-install-command.test.ts \
+  cli/src/__tests__/service-health-check.test.ts
+echo 'Prepared. Apply any pending migrations once, then doctor without repair before starting.'

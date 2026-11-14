@@ -1,0 +1,57 @@
+#!/bin/bash
+set -euo pipefail
+umask 077
+
+# A recovery set is valid only after ALL writers (including manual agents) stop.
+# This helper deliberately does not stop anything or change restart policies.
+[[ $# -ge 1 && $# -le 2 && "$1" = /* ]] || {
+  echo 'Usage: backup /absolute/new-recovery-directory [/absolute/current-host-home]' >&2; exit 2;
+}
+if [[ $# = 2 ]]; then
+  [[ "$2" = /* && -d "$2/instances" ]] || { echo 'Invalid current host HOME' >&2; exit 2; }
+fi
+repo="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$repo"
+for container in paperclip-private-slack-server-1 paperclip-private-slack-slack-callback-1; do
+  [[ "$(docker inspect -f '{{.State.Running}}' "$container")" = false ]] || {
+    echo "Stop $container after drain before backing up" >&2; exit 1;
+  }
+done
+if ss -H -ltn 'sport = :3110' | read -r _; then
+  echo 'Port 3110 still has a listener; stop the local writer first' >&2; exit 1
+fi
+mkdir -m 700 -- "$1"
+dest="$1"
+git diff --binary HEAD > "$dest/working-tree.patch"
+git status --short > "$dest/status.txt"
+git rev-parse HEAD > "$dest/head.txt"
+git ls-files --others --exclude-standard -z > "$dest/untracked.list"
+tar --null -T "$dest/untracked.list" -czf "$dest/untracked.tar.gz"
+cp docker/.env.private-slack docker/docker-compose.private-slack.yml docker/slack-callback/nginx.conf "$dest/"
+docker inspect paperclip-private-slack-server-1 paperclip-private-slack-db-1 \
+  paperclip-private-slack-slack-callback-1 > "$dest/containers.private.json"
+docker exec paperclip-private-slack-db-1 pg_dump -U paperclip -d paperclip -Fc > "$dest/database.dump"
+docker exec -i paperclip-private-slack-db-1 pg_restore --list < "$dest/database.dump" > "$dest/database.list"
+# The first cutover reads Docker HOME; later updates must back up current host
+# HOME, never the now-stale preserved Docker volume.
+if [[ $# = 2 ]]; then
+  [[ "$dest/" != "$2/"* ]] || { echo 'Backup destination must be outside HOME' >&2; exit 1; }
+  tar -czf "$dest/home.tar.gz" -C "$2" .
+  printf '%s\n' "$2" > "$dest/home-source.txt"
+else
+  docker run --rm --network none --entrypoint tar \
+    --mount type=volume,src=paperclip-private-slack_paperclip-data,dst=/source,readonly \
+    postgres:17-alpine -czf - -C /source . > "$dest/home.tar.gz"
+  printf '%s\n' 'volume:paperclip-private-slack_paperclip-data' > "$dest/home-source.txt"
+fi
+tar -tzf "$dest/home.tar.gz" > "$dest/home.list"
+if [[ -d "${XDG_CONFIG_HOME:-$HOME/.config}/paperclip/local-service" ]]; then
+  cp -a "${XDG_CONFIG_HOME:-$HOME/.config}/paperclip/local-service" "$dest/local-service-config"
+fi
+(
+  cd "$dest"
+  sha256sum database.dump home.tar.gz working-tree.patch untracked.tar.gz > SHA256SUMS
+  sha256sum -c SHA256SUMS
+)
+date -Iseconds > "$dest/backup-complete"
+echo "Recovery set: $dest (archive inspected; restore rehearsal not performed)"

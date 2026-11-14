@@ -475,6 +475,7 @@ export function Browse({ renderAccountDetails = (connection) => connection.conne
       }
     },
     onSuccess: (_connection, target) => {
+      queryClient.invalidateQueries({ queryKey: ["ai-connections", selectedCompanyId!] });
       queryClient.invalidateQueries({ queryKey: ["email-inboxes", selectedCompanyId!] });
       queryClient.invalidateQueries({
         queryKey: queryKeys.chatEndpoints.list(selectedCompanyId!),

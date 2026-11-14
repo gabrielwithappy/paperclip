@@ -392,4 +392,4 @@ ordinary New Agent draft → model/secret → Test → save/reopen → task jour
 through ordinary released selection. Native filesystem/shell tools are denied in read-only
 Kimi work; scoped Paperclip tools retain control-plane authorization. This recipe
 is a test path, not a statement that live acceptance passed. Current evidence:
-[Kimi release ledger](../../doc/plans/2026-10-28-kimi-code-runner-integration.md).
+[Kimi release ledger](../../doc/plans/done/2026-10-28-kimi-code-runner-integration.md).

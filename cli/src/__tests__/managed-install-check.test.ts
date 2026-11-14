@@ -13,12 +13,34 @@ import {
 } from "../install-store.js";
 
 const originalPath = process.env.PATH;
+const originalShimPath = process.env.PAPERCLIP_SHIM_PATH;
 
 afterEach(() => {
   process.env.PATH = originalPath;
+  if (originalShimPath === undefined) delete process.env.PAPERCLIP_SHIM_PATH;
+  else process.env.PAPERCLIP_SHIM_PATH = originalShimPath;
 });
 
 describe("managed install doctor checks", () => {
+  it("allows a source launcher beside another instance's global shim while enforcing store integrity", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-source-doctor-"));
+    try {
+      const paths = resolveInstallStorePaths({ paperclipHome: path.join(root, "data"), homeDir: root });
+      fs.mkdirSync(path.dirname(paths.shimPath), { recursive: true });
+      fs.writeFileSync(paths.shimPath, "other instance shim");
+      process.env.PAPERCLIP_SHIM_PATH = path.join(root, "source-launcher");
+      expect(managedInstallChecks(paths)).toEqual([
+        expect.objectContaining({ name: "Managed install", status: "pass" }),
+      ]);
+      fs.mkdirSync(paths.cliRoot, { recursive: true });
+      fs.writeFileSync(paths.markerPath, MANAGED_STORE_MARKER);
+      expect(managedInstallChecks(paths)).toEqual([
+        expect.objectContaining({ name: "Managed install manifest", status: "fail" }),
+      ]);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
   it("passes for a consistent store, manifest, current link, shim, and PATH", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "paperclip-install-doctor-"));
     const paths = resolveInstallStorePaths({

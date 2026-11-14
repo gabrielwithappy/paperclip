@@ -22,7 +22,11 @@ function hasManagedArtifacts(paths: InstallStorePaths): boolean {
     paths.manifestPath,
     paths.markerPath,
     paths.currentPath,
-    paths.shimPath,
+    // A source service may use its own launcher while another instance owns
+    // the user's global managed shim. Store artifacts still require a manifest.
+    ...(process.env.PAPERCLIP_SHIM_PATH?.trim()
+      && path.resolve(process.env.PAPERCLIP_SHIM_PATH.trim()) !== path.resolve(paths.shimPath)
+      ? [] : [paths.shimPath]),
   ].some((entry) => fs.existsSync(entry));
   if (persistentArtifacts) return true;
   try {
