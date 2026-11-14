@@ -143,6 +143,13 @@ Policy: Environment tests follow agent creation/configuration authority. Support
 managed-account login initiation follows `model-accounts` below; human codes and
 consent, raw host login and adapter installation retain their specific gates.
 
+The optional self-hosted [OpenCode MCP external adapter](../../extensions/opencode-mcp-adapter/README.md)
+uses the existing execution MCP contract and gateway authorization. It introduces
+no agent-facing REST operation or installation authority. Local OpenCode 1.18.9
+fixtures verify authenticated discovery/calls and session changes; those fixtures
+do not qualify Paperclip company-isolation or approval end-to-end. Unsupported
+remote/scoped targets fail environment validation before host/provider probes.
+
 The board-driven [Antigravity saved-subscription journey](../../tests/runner-e2e/ANTIGRAVITY-AGENT-JOURNEY.md)
 uses this ordinary environment Test after selecting the same signed-in owner's
 saved personal Google grant. It also verifies actual task outputs and native

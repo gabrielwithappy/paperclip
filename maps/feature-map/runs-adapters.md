@@ -179,6 +179,15 @@ self-hosted compatibility. The [route authorization controls](../../server/src/_
 check managed denials before package or registration access. These are local
 controls, not live Cloud provider qualification.
 
+Self-hosted operators can optionally install the [OpenCode MCP external adapter](../../extensions/opencode-mcp-adapter/README.md).
+It replaces `opencode_local` instance-wide and delivers run-scoped Paperclip MCP
+gateways to local OpenCode 1.18.9. Explicit sandbox scopes and remote targets are
+not qualified. Its local fixtures exercise actual CLI tool discovery/calls, token
+rotation with resume and connection removal; live plugin activation, task-bound
+approvals and Todoist acceptance remain separate qualification steps. Confirm the
+`opencode_mcp_bridge_build` diagnostic after install/restart; an installation record
+alone does not prove the external implementation loaded.
+
 Automated: [adapter validation routes](../../server/src/__tests__/agent-adapter-validation-routes.test.ts) and [model refresh](../../server/src/__tests__/adapter-model-refresh-routes.test.ts) cover server behavior.
 
 Claude native setup uses the existing Anthropic API-key or subscription connection

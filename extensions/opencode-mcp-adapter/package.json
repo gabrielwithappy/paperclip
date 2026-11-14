@@ -1,0 +1,55 @@
+{
+  "name": "@gabrielwithappy/paperclip-opencode-mcp-adapter",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "Run-scoped Paperclip MCP delivery for the OpenCode local adapter",
+  "engines": {
+    "node": ">=24.11.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.js"
+    },
+    "./ui": {
+      "types": "./dist/ui.d.ts",
+      "import": "./dist/ui.js"
+    },
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "import": "./dist/cli.js"
+    },
+    "./ui-parser": "./dist/ui-parser.js"
+  },
+  "paperclip": {
+    "adapterUiParser": "1.0.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "link-host": "node scripts/link-host.mjs",
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test test/*.test.mjs"
+  },
+  "peerDependencies": {
+    "@paperclipai/adapter-opencode-local": "0.3.1",
+    "@paperclipai/adapter-utils": "0.3.1"
+  },
+  "dependencies": {
+    "jsonc-parser": "3.3.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2",
+    "@types/node": "24.13.3",
+    "tsx": "4.23.15"
+  }
+}
