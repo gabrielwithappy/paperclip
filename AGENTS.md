@@ -165,10 +165,10 @@ When changing data model:
 pnpm db:generate
 ```
 
-4. Validate compile:
+4. Validate the changed DB package and affected consumers in sequence. Start with:
 
 ```sh
-pnpm -r typecheck
+pnpm --filter @paperclipai/db typecheck
 ```
 
 Notes:
@@ -212,10 +212,18 @@ Run the browser suites only when your change touches them or when you are explic
 
 For normal issue work, run the smallest relevant verification first. Do not default to repo-wide typecheck/build/test on every heartbeat when a narrower check is enough to prove the change.
 
-Run this full check before claiming repo work done in a PR-ready hand-off, or when the change scope is broad enough that targeted checks are not sufficient:
+Type checking on this shared development host must follow these rules:
+
+- Run typecheck only for changed packages and consumers whose type contracts changed. Documentation-only changes do not need typecheck, tests, or build.
+- Reuse a successful check when its relevant source, dependencies, configuration, and generated inputs have not changed. A new turn, handoff, commit, or push alone does not require another check.
+- Run only one typecheck process at a time across checkouts and agents on this host. Check for an existing typecheck before starting one; wait for it instead of launching a duplicate. Do not stop another contributor's process without coordinating with them.
+- Run typecheck separately from memory-intensive builds and test suites. A build that invokes TypeScript also counts as a typecheck workload.
+- If typecheck exits with 137 or reports an out-of-memory error, record the failure and stop automatic retries. Reduce the scope or competing workload before one justified retry. Do not launch recursive retries in parallel or increase memory limits as a substitute for reducing concurrency.
+
+Use full repository checks only when the change has broad impact that targeted checks cannot establish, or when explicitly requested. A PR-ready handoff alone does not require repeating full checks. When full checks are needed, run these commands one at a time, with package typechecks serialized:
 
 ```sh
-pnpm -r typecheck
+pnpm -r --workspace-concurrency=1 typecheck
 pnpm test:run
 pnpm build
 ```
@@ -259,7 +267,7 @@ When creating a pull request (via `gh pr create` or any other method), you **mus
 A change is done when all are true:
 
 1. Behavior matches `doc/SPEC-implementation.md`
-2. Typecheck, tests, and build pass
+2. Relevant verification passes at the scope selected in section 7; report skipped checks and limitations. Documentation-only changes require a diff review and `git diff --check`.
 3. Contracts are synced across db/shared/server/ui
 4. Docs updated when behavior or commands change
 5. PR description follows the [PR template](.github/PULL_REQUEST_TEMPLATE.md) with all sections filled in (including Model Used)
