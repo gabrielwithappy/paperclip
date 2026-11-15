@@ -6,7 +6,8 @@ import path from 'node:path';
 import http from 'node:http';
 import {execute} from '../dist/server.js';
 
-test('real base adapter and actual CLI call an authenticated MCP tool using a local model fixture', {timeout:45000}, async t=>{
+for (const toolName of ['read_fixture', ...[98,103].map(length => 'mcp.fixture-'+'x'.repeat(length-25)+':read_fixture')]) {
+test(`actual CLI calls a ${toolName.length}-character MCP tool with a 128-character model limit`, {timeout:45000}, async t=>{
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'opencode-call-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
  let token='e2e-fixture-auth-token';const calls=[],modelRequests=[];let callCount=0;
  const service=http.createServer(async(req,res)=>{
@@ -18,12 +19,15 @@ test('real base adapter and actual CLI call an authenticated MCP tool using a lo
    if(m.id===undefined){res.writeHead(202);res.end();return}
    let result={};
    if(m.method==='initialize')result={protocolVersion:'2024-11-05',capabilities:{tools:{}},serverInfo:{name:'fixture',version:'1'}};
-   if(m.method==='tools/list')result={tools:[{name:'read_fixture',description:'Return fixture result',inputSchema:{type:'object',properties:{}},annotations:{readOnlyHint:true}}]};
-   if(m.method==='tools/call'){assert.equal(m.params.name,'read_fixture');callCount++;result={content:[{type:'text',text:'fixture-read-result'}]}}
+   if(m.method==='tools/list')result={tools:[{name:toolName,description:'Return fixture result',inputSchema:{type:'object',properties:{}},annotations:{readOnlyHint:true}}]};
+   if(m.method==='tools/call'){assert.equal(m.params.name,toolName);callCount++;result={content:[{type:'text',text:'fixture-read-result'}]}}
    res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({jsonrpc:'2.0',id:m.id,result}));return;
   }
   if(req.url?.endsWith('/chat/completions')){
-   const body=JSON.parse(text);modelRequests.push({hasTools:!!body.tools?.length});
+   const body=JSON.parse(text);
+   const invalid=body.tools?.find(x=>x.function?.name?.length>128);
+   if(invalid){res.writeHead(400,{'Content-Type':'application/json'});res.end(JSON.stringify({error:{message:`Function name exceeds 128 character limit, got ${invalid.function.name.length} characters`,type:'Bad Request'}}));return;}
+   modelRequests.push({names:body.tools?.map(x=>x.function?.name)??[]});
    const tool=body.tools?.find(x=>x.function?.name?.endsWith('read_fixture'));
    const lastUser=body.messages?.findLastIndex(m=>m.role==='user') ?? -1;
    const hasResult=body.messages?.slice(lastUser+1).some(m=>m.role==='tool');
@@ -41,6 +45,12 @@ test('real base adapter and actual CLI call an authenticated MCP tool using a lo
  });
  await new Promise(resolve=>service.listen(0,'127.0.0.1',resolve));t.after(()=>{service.closeAllConnections();service.close()});
  const origin=`http://127.0.0.1:${service.address().port}`;
+ // Prove the fixture enforces the same boundary as the failing provider.
+ for(const [length,status] of [[128,200],[129,400]]){
+  const response=await fetch(origin+'/v1/chat/completions',{method:'POST',body:JSON.stringify({tools:[{function:{name:'x'.repeat(length)}}]})});
+  assert.equal(response.status,status);await response.text();
+ }
+ modelRequests.length=0;
  const inline={provider:{fixture:{npm:'@ai-sdk/openai-compatible',name:'Fixture',options:{baseURL:origin+'/v1',apiKey:'fixture-only'},models:{'fixture-model':{name:'Fixture',limit:{context:32000,output:4000}}}}},small_model:'fixture/fixture-model'};
  const env={HOME:root,XDG_CONFIG_HOME:root+'/config',XDG_DATA_HOME:root+'/data',XDG_CACHE_HOME:root+'/cache',XDG_STATE_HOME:root+'/state',OPENCODE_CONFIG:'',OPENCODE_CONFIG_DIR:'',OPENCODE_DISABLE_MODELS_FETCH:'true',OPENCODE_ALLOW_ALL_MODELS:'1',OPENCODE_CONFIG_CONTENT:JSON.stringify(inline)};
  const logs=[];
@@ -48,6 +58,9 @@ test('real base adapter and actual CLI call an authenticated MCP tool using a lo
  const r=await execute(ctx);
  assert.equal(r.exitCode,0,JSON.stringify({error:r.errorMessage,logs:logs.join('').slice(-4000),calls,modelRequests}));
  assert.equal(callCount,1,JSON.stringify({calls,modelRequests,logs:logs.join('').slice(-4000)}));
+ const delivered=modelRequests.flatMap(r=>r.names).filter(name=>name?.endsWith('read_fixture'));
+ assert(delivered.length>0);assert(delivered.every(name=>name.length===23+1+toolName.length));
+ assert(logs.join('').includes('fixture-read-result'),'final response must contain the tool result');
  assert(!logs.join('').includes(token));assert(!JSON.stringify(r).includes(token));assert(r.sessionId);
  token='e2e-rotated-fixture-token';
  ctx.runtime={...ctx.runtime,sessionId:r.sessionId,sessionParams:r.sessionParams};
@@ -58,3 +71,4 @@ test('real base adapter and actual CLI call an authenticated MCP tool using a lo
  const third=await execute(ctx);assert.equal(third.exitCode,0,third.errorMessage);
  assert.equal(callCount,2);assert.notEqual(third.sessionId,r.sessionId);
 });
+}

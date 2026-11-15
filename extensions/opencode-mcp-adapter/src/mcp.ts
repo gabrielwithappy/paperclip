@@ -5,8 +5,12 @@ import { createHash } from 'node:crypto';
 import { parse, type ParseError } from 'jsonc-parser';
 import type { AdapterRuntimeMcpServer } from '@paperclipai/adapter-utils';
 
-export const DELIVERY_VERSION = '0.1.0';
-export const SERVER_PREFIX = 'paperclip_run_';
+export const DELIVERY_VERSION = '0.1.1';
+// OpenCode sends `${serverKey}_${gatewayToolName}` to the model. Paperclip's
+// gateway names are bounded to 103 characters; 23 + 1 + 103 = 127 (limit 128).
+export const SERVER_PREFIX = 'pc_mcp_';
+const RESERVED_SERVER_KEY = /^pc_mcp_[a-f0-9]{16}$/;
+const LEGACY_SERVER_PREFIX = 'paperclip_run_';
 export type ObjectValue = Record<string, unknown>;
 export const object = (value: unknown): ObjectValue =>
   value !== null && typeof value === 'object' && !Array.isArray(value) ? value as ObjectValue : {};
@@ -21,14 +25,18 @@ function jsonObject(text: string): ObjectValue {
 }
 
 export function serverKey(connectionId: string): string {
-  return SERVER_PREFIX + createHash('sha256').update(connectionId).digest('hex').slice(0, 24);
+  return SERVER_PREFIX + createHash('sha256').update(connectionId).digest('hex').slice(0, 16);
 }
 
 function validateServers(servers: AdapterRuntimeMcpServer[]): void {
   const ids = new Set<string>();
+  const keys = new Set<string>();
   for (const server of servers) {
     if (!server.connectionId || ids.has(server.connectionId)) throw new Error('Duplicate or missing MCP connection identity.');
     ids.add(server.connectionId);
+    const key = serverKey(server.connectionId);
+    if (keys.has(key)) throw new Error('Conflicting Paperclip MCP server keys.');
+    keys.add(key);
     let url: URL;
     try { url = new URL(server.url); } catch { throw new Error('Invalid Paperclip MCP URL.'); }
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.hash) {
@@ -76,7 +84,7 @@ export async function prepareMcp(servers: AdapterRuntimeMcpServer[], env: Object
     if (source.mcp !== undefined && (typeof source.mcp !== 'object' || source.mcp === null || Array.isArray(source.mcp))) {
       throw new Error('Invalid existing OpenCode MCP configuration.');
     }
-    if (Object.keys(object(source.mcp)).some(k => keys.has(k) || k.startsWith(SERVER_PREFIX))) {
+    if (Object.keys(object(source.mcp)).some(k => keys.has(k) || RESERVED_SERVER_KEY.test(k) || k.startsWith(LEGACY_SERVER_PREFIX))) {
       throw new Error('Existing MCP configuration conflicts with the reserved Paperclip namespace.');
     }
   }

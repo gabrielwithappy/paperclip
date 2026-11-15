@@ -1,6 +1,6 @@
 {
   "name": "@gabrielwithappy/paperclip-opencode-mcp-adapter",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "license": "MIT",
   "description": "Run-scoped Paperclip MCP delivery for the OpenCode local adapter",

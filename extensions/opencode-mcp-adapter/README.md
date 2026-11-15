@@ -45,14 +45,21 @@ without runtime imports. Existing OpenCode config UI/CLI behavior is reused by t
 ## What is injected
 
 Each run receives only gateways from `ctx.runtimeMcp.getServers()`. Their stable
-`connectionId` produces a deterministic server key under `paperclip_run_`. Actual
+`connectionId` produces a deterministic 23-character server key: `pc_mcp_` plus
+16 SHA-256 hex characters. OpenCode combines this with `_` and the gateway tool
+name. Paperclip bounds gateway names to 103 characters, so the composed name is
+at most 127 characters for the tested 128-character model limit. Original gateway
+tool names are preserved for calls. This does not guarantee compatibility with
+models imposing shorter limits or arbitrary user MCP tools. Actual
 credentials are written to a dedicated 0700 temporary directory, in 0600 files.
 Transient `OPENCODE_CONFIG_CONTENT` contains file references, not tokens, and sets
 `oauth:false` to prevent OpenCode requesting a second OAuth authorization.
 
 User provider/MCP configuration is retained. JSON/JSONC collisions with the
 reserved namespace or malformed configuration fail explicitly. Do not put your
-own servers under `paperclip_run_`. OpenCode project config stays disabled by the
+own servers matching `^pc_mcp_[a-f0-9]{16}$` or the legacy `paperclip_run_`
+prefix. Unrelated names such as `pc_local` and `pc_mcp_custom` are retained.
+Generated key collisions are rejected before writing credentials. OpenCode project config stays disabled by the
 base adapter. The extension never changes global environment variables, durable
 agent settings, server grants, or stored connections.
 
@@ -64,7 +71,8 @@ unauthenticated request to `ai.todoist.net/mcp` cannot test saved Paperclip OAut
 ## Session behavior
 
 The codec preserves the base session fields plus a nonsecret hash of MCP identities
-and endpoints. Tokens and temporary paths do not enter session state. Compatible
+and endpoints, including the delivery version. Upgrading from 0.1.0 to 0.1.1
+starts a fresh handoff so the old server namespace is not resumed. Tokens and temporary paths do not enter session state. Compatible
 sets keep the session while each process gets fresh token sidecars. Changed or
 removed sets start fresh using Paperclip's existing handoff mechanism. Explicit
 refresh requests use `supportsToolRefreshOnResume:false` conservatively, allowing
@@ -98,7 +106,7 @@ preparation and a separate instance installation.
 
 Installation records and API `source: external` alone do not prove that the external
 implementation loaded. Run environment diagnostics and confirm
-`opencode_mcp_bridge_build` reports `0.1.0`. Check again after a cold restart and
+`opencode_mcp_bridge_build` reports `0.1.1`. Check again after a cold restart and
 verify an authenticated fixture call. Loader import failure can leave the built-in
 adapter active. A package cannot intercept that host loader fallback.
 
@@ -121,7 +129,10 @@ its token in commands, the package, or issue comments.
 - A local OpenAI-compatible model fixture drives the **actual base executor and
   actual OpenCode CLI** through authenticated `tools/call`, token rotation with
   session resume, and removal with a fresh session. No external model cost or
-  Todoist mutations occur.
+  Todoist mutations occur. The model fixture rejects function names above 128
+  characters and exercises 98/103-character gateway names (122/127 characters
+  after OpenCode composition), punctuation normalization, exact upstream calls,
+  session resume and final responses.
 
 These are local protocol/adapter tests, not a full Paperclip task acceptance run.
 On 2026-11-15 the current self-hosted instance additionally passed authenticated
@@ -129,6 +140,11 @@ API installation/activation, override pause/resume, cold-restart persistence,
 the external build diagnostic and an actual CLI hello probe through the server.
 A server-side Todoist `get-overview` read also succeeded. The installation record
 is outside Git; this evidence does not make a fresh checkout installed.
+After the 0.1.1 upgrade, a probe using the saved NVIDIA model and actual CLI
+called a 103-character local read fixture exactly once (127-character composed
+name) and completed the hello response. The external build marker and hello
+probe also passed after restart. This proves the provider boundary with a local
+fixture, rather than a full task or channel delivery.
 Task-bound approval→approve-and-run→resume exactly-once, company-isolation
 end-to-end, uninstall/reinstall recovery, and a full OpenCode agent task using
 live Todoist remain separate qualification steps. Existing host enforcement is
@@ -139,4 +155,4 @@ leave 0600 files in the temporary directory**. There is no automatic age-based
 sweeper because long-running live processes may still need them. After a crash,
 verify the relevant OpenCode process has stopped before securely removing the
 orphaned `paperclip-opencode-mcp-*` directory. Do not copy it into backups/artifacts.
-Full host-crash recovery and remote support are not claimed by version 0.1.0.
+Full host-crash recovery and remote support are not claimed by version 0.1.1.

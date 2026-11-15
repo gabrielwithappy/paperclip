@@ -3,6 +3,7 @@ import {test} from 'node:test';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import {createHash} from 'node:crypto';
 import {createServerAdapter,execute,sessionCodec} from '../dist/server.js';
 import {serverKey,mcpIdentity} from '../src/mcp.ts';
 const token='fixture-private-token-do-not-log';
@@ -16,7 +17,7 @@ if(args[0]==='--version'){console.log('1.18.9');process.exit(0)}
 let input='';process.stdin.on('data',c=>input+=c);process.stdin.on('end',()=>{
 const conf=JSON.parse(process.env.OPENCODE_CONFIG_CONTENT||'{}');
 fs.writeFileSync(process.env.FIXTURE_CAPTURE,JSON.stringify({args,conf,input}));
-const key=Object.keys(conf.mcp||{}).find(k=>k.startsWith('paperclip_run_'));
+const key=Object.keys(conf.mcp||{}).find(k=>/^pc_mcp_[a-f0-9]{16}$/.test(k));
 const file=key?conf.mcp[key].headers.Authorization.slice(6,-1):null;
 if(file&&!fs.readFileSync(file,'utf8').startsWith('Bearer ')) process.exit(3);
 console.log(JSON.stringify({type:'text',sessionID:'session-fixture',part:{text:'Read success'}}));
@@ -43,6 +44,16 @@ test('real base executor receives MCP refs, cleans files, resumes rotation and r
 test('scoped target and wrong CLI version fail before base invocation',async t=>{
  const f=await fixture(t);const r=await execute({...f.ctx,config:{...f.ctx.config,filesystemScope:{}}});assert.equal(r.errorCode,'opencode_mcp_target_unsupported');
  await fs.writeFile(f.ctx.config.command,'#!/bin/sh\necho 2.0.0\n',{mode:0o755});const v=await execute(f.ctx);assert.equal(v.errorCode,'opencode_mcp_version_unsupported');await assert.rejects(fs.stat(f.capture),{code:'ENOENT'});
+});
+test('upgrade from 0.1.0 starts fresh without deleting prior session history',async t=>{
+ const f=await fixture(t);
+ const oldIdentity=createHash('sha256').update(JSON.stringify(['0.1.0',[server.connectionId,server.url]])).digest('hex');
+ f.ctx.runtime={...f.ctx.runtime,sessionId:'old-session',sessionParams:{sessionId:'old-session',cwd:f.dir,paperclipMcpIdentity:oldIdentity}};
+ const previous=JSON.stringify(f.ctx.runtime);
+ const result=await execute(f.ctx);assert.equal(result.exitCode,0,result.errorMessage);
+ assert(!JSON.parse(await fs.readFile(f.capture,'utf8')).args.includes('--session'));
+ assert.equal(result.sessionParams.paperclipMcpIdentity,mcpIdentity([server]));
+ assert.equal(JSON.stringify(f.ctx.runtime),previous);
 });
 test('environment diagnostics reject scoped targets before probing the base or host',async()=>{
  const a=createServerAdapter();
