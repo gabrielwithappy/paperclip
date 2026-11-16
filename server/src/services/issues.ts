@@ -1,3 +1,4 @@
+import { executionBlockerPredicate } from "./execution-blocker.js";
 import { notifyDeferredExecutionEligibility } from "./deferred-execution-notifications.js";
 import { notifyIssueRecovery } from "./issue-recovery-notifications.js";
 import { notifyRunDispatch } from "./run-dispatch-notifications.js";
@@ -4026,6 +4027,8 @@ async function listIssueBlockerAttentionMap(
               BLOCKER_ATTENTION_ACTIVE_WAKE_STATUSES,
             ),
             sql`${agentWakeupRequests.runId} is null`,
+            sql`(${agentWakeupRequests.status} = 'queued' or
+              ${agentWakeupRequests.payload}->'executionWait' is null)`,
             inArray(
               sql<string>`${agentWakeupRequests.payload} ->> 'issueId'`,
               chunk,
@@ -4042,6 +4045,13 @@ async function listIssueBlockerAttentionMap(
     .filter((node) => node.status !== "done")
     .map((node) => node.id);
   const explicitWaitingIssueIds = new Set<string>();
+  const recoveryBlockedIssueIds = new Set<string>();
+  for (const chunk of chunkList(nodeIds, ISSUE_LIST_RELATED_QUERY_CHUNK_SIZE)) {
+    const blocked = await dbOrTx.select({ issueId: issueRecoveryActions.sourceIssueId })
+      .from(issueRecoveryActions).where(and(eq(issueRecoveryActions.companyId, companyId),
+        inArray(issueRecoveryActions.sourceIssueId, chunk), executionBlockerPredicate()));
+    for (const row of blocked) recoveryBlockedIssueIds.add(row.issueId);
+  }
   if (explicitWaitCandidateIds.length > 0) {
     for (const chunk of chunkList(
       explicitWaitCandidateIds,
@@ -4171,6 +4181,7 @@ async function listIssueBlockerAttentionMap(
                 agentWakeupRequests.status,
                 BLOCKER_ATTENTION_ACTIVE_WAKE_STATUSES,
               ),
+              sql`(${agentWakeupRequests.status} = 'queued' or ${agentWakeupRequests.payload}->'executionWait' is null)`,
               inArray(
                 sql<string>`${agentWakeupRequests.payload} ->> 'recoveryActionId'`,
                 chunk,
@@ -4250,6 +4261,10 @@ async function listIssueBlockerAttentionMap(
         sampleBlockerIdentifier: nodeSample,
         sampleStalledBlockerIdentifier: null,
       };
+    }
+    if (recoveryBlockedIssueIds.has(node.id)) {
+      return { covered: false, stalled: false, sampleBlockerIdentifier: nodeSample,
+        sampleStalledBlockerIdentifier: null, terminalBlockerIssueId: node.id };
     }
     if (explicitWaitingIssueIds.has(node.id)) {
       return {
@@ -4393,9 +4408,8 @@ async function listIssueBlockerAttentionMap(
   const pathHasLiveWork = (nodeId: string, seen: Set<string>): boolean => {
     if (seen.has(nodeId)) return false;
     const node = nodesById.get(nodeId);
-    if (!node || node.companyId !== companyId) return false;
+    if (!node || node.companyId !== companyId || recoveryBlockedIssueIds.has(node.id)) return false;
     if (
-      node.status === "in_progress" ||
       activeIssueIds.has(node.id) ||
       explicitWaitingIssueIds.has(node.id) ||
       Boolean(node.assigneeUserId)

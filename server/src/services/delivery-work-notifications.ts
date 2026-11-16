@@ -6,6 +6,7 @@ export const DELIVERY_QUEUES = {
   taskRetryReceiptSettlement: "task-retry-receipt-settlement",
   nativeStatusWakeIntents: "native-status-wake-intents",
   orphanBlockers: "orphan-blockers",
+  delegatedRecoveryFeedback: "delegated-recovery-feedback",
   activeRecoveryActions: "active-recovery-actions",
   strandedAssignments: "stranded-assignments",
   resolvedDependencies: "resolved-dependencies",

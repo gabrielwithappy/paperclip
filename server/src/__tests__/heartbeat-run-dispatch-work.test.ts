@@ -2,7 +2,7 @@ import { idleWorkSnapshot } from "../services/task-admission.js";
 import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { agents, companies, costEvents, createDb, databaseWorkPending, heartbeatRuns, issues } from "@paperclipai/db";
+import { agents, authUsers, companyMemberships, companies, costEvents, createDb, databaseWorkPending, heartbeatRuns, issueComments, issueRelations, issues } from "@paperclipai/db";
 import { getEmbeddedPostgresTestSupport, startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
 import { resolveExternalTestDatabaseUrl } from "./helpers/external-test-database.js";
 import { issueService } from "../services/issues.js";
@@ -148,6 +148,36 @@ describe.skipIf(!support.supported)("run dispatch production wiring (controlled 
     expect(await db.select().from(heartbeatRuns).where(and(eq(heartbeatRuns.companyId, f.companyId), eq(heartbeatRuns.retryOfRunId, f.runId)))).toHaveLength(1);
     await quiet();
   });
+  it("runs one new saved request after cancelling an undispatched delegated retry", async () => {
+    const f = await fixture();
+    await db.insert(authUsers).values({ id: "dispatch-user", name: "Dispatch user", email: "dispatch@example.test", emailVerified: true, createdAt: new Date(), updatedAt: new Date() }).onConflictDoNothing();
+    await db.insert(companyMemberships).values({ companyId: f.companyId, principalType: "user", principalId: "dispatch-user", status: "active", membershipRole: "owner" });
+    const [caller] = await db.insert(issues).values({ companyId: f.companyId, title: "Caller", status: "blocked" }).returning();
+    const [callee] = await db.insert(issues).values({ companyId: f.companyId, title: "Callee", status: "in_progress",
+      assigneeAgentId: f.agentId, parentId: caller.id, executionRunId: f.runId }).returning();
+    await db.insert(issueRelations).values({ companyId: f.companyId, issueId: callee.id, relatedIssueId: caller.id, type: "blocks" });
+    await db.update(heartbeatRuns).set({ issueId: callee.id, contextSnapshot: { issueId: callee.id } }).where(eq(heartbeatRuns.id, f.runId));
+    const scheduled = await heartbeat.scheduleBoundedRetry(f.runId, { delayMs: 600_000 });
+    if (scheduled.outcome !== "scheduled") throw new Error("Expected delegated retry");
+    await heartbeat.cancelRun(scheduled.run.id, "operator stop", { suppressImmediateRecovery: true });
+    expect(await status(scheduled.run.id)).toMatchObject({ status: "cancelled", startedAt: null,
+      resultJson: { startupCancellation: { beforeScheduledDispatch: true } } });
+    const [comment] = await db.insert(issueComments).values({ companyId: f.companyId, issueId: callee.id,
+      authorType: "user", authorUserId: "dispatch-user", body: "Continue with this new request." }).returning();
+    await start();
+    const request = { source: "automation" as const, triggerDetail: "system" as const, reason: "issue_commented",
+      requestedByActorType: "user", requestedByActorId: "dispatch-user", idempotencyKey: `new-request:${comment.id}`,
+      payload: { issueId: callee.id, commentId: comment.id }, contextSnapshot: { issueId: callee.id, wakeCommentId: comment.id } };
+    const successor = await heartbeat.wakeup(f.agentId, request);
+    expect(successor).not.toBeNull();
+    await completed(successor!.id);
+    await heartbeat.drainActiveRunExecutions();
+    const delivered = await db.select().from(heartbeatRuns).where(and(eq(heartbeatRuns.companyId, f.companyId),
+      sql`${heartbeatRuns.contextSnapshot}->>'wakeCommentId' = ${comment.id}`));
+    expect(delivered).toHaveLength(1);
+    expect(await status(scheduled.run.id)).toMatchObject({ status: "cancelled", startedAt: null });
+  });
+
   it("reconstructs an overdue retry after process restart without a periodic tick", async () => {
     const f = await fixture();
     const scheduled = await heartbeat.scheduleBoundedRetry(f.runId, { now: new Date(Date.now() - 120_000), delayMs: 60_000 });

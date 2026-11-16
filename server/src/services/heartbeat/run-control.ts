@@ -1,3 +1,4 @@
+import { scheduledDispatchCancellationProof } from "../scheduled-dispatch-cancellation.js";
 import { instanceSettingsService } from "../instance-settings.js";
 import { writeDeferredExecutionWait } from "../deferred-execution-wait.js";
 import type { DeferredReceiptRecoveryOptions } from "../deferred-execution-notifications.js";
@@ -305,6 +306,7 @@ function runCancellationFenceSql(input: {
   const cancellation = JSON.stringify(input.cancellation);
   const startupCancellation = sql`jsonb_build_object(
     'requestedAt', ${new Date().toISOString()}::text,
+    'beforeScheduledDispatch', ${scheduledDispatchCancellationProof()},
     'errorCode', ${input.errorCode}::text,
     'beforeNativeSelection', ${heartbeatRuns.runtimeMode} = 'legacy'
       and ${heartbeatRuns.runtimeModeResolvedAt} is null
@@ -1340,7 +1342,9 @@ export function createHeartbeatRunControl(db: Db, dependencies: HeartbeatRunCont
           }),
           ...(options.resultJson ?? {}),
         }
-      : options.resultJson), cancellation };
+      : options.resultJson), cancellation,
+      ...(run.resultJson?.startupCancellation ? { startupCancellation: run.resultJson.startupCancellation } : {}),
+    };
 
     try {
       let releaseProcessCancellation: (() => void) | undefined;

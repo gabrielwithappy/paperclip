@@ -14,3 +14,9 @@ export async function notifyIssueRecovery(transaction: object, scope?: IssueReco
       queue === DELIVERY_QUEUES.strandedAssignments || queue === DELIVERY_QUEUES.staleIssueLocks ? issueHint : companyHint);
   }
 }
+
+/** Recovery action mutations also publish one incident-feedback obligation. */
+export async function notifyRecoveryActionChange(transaction: object, scope: IssueRecoveryScope) {
+  await notifyIssueRecovery(transaction, scope);
+  await notifyDeliveryWork(transaction, DELIVERY_QUEUES.delegatedRecoveryFeedback, JSON.stringify({ companyId: scope.companyId }));
+}

@@ -1,3 +1,4 @@
+import { registerDelegatedRecoveryFeedback } from "./delegated-feedback.js";
 import { registerTaskWatchdogWork } from "../task-watchdog-work.js";
 import { and, asc, eq, gt, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { issueRecoveryActions, issueRelations, issues, type Db } from "@paperclipai/db";
@@ -106,7 +107,8 @@ export function registerIssueRecoveryWork(
   const watchdogs = registerTaskWatchdogWork(db, coordinator, {
     reconcile: owner.watchdogs, enabled: async () => !(await owner.schedulingSuppressed()),
   }, canRun);
-  const workers = [assignments, orphanBlockers, recoveryActions, dependencies, locks, watchdogs];
+  const feedback = registerDelegatedRecoveryFeedback(db, coordinator, canRun);
+  const workers = [feedback, assignments, orphanBlockers, recoveryActions, dependencies, locks, watchdogs];
   return { ready: Promise.all(workers.map(worker => worker.ready)),
     wake() { for (const worker of workers) worker.invalidate(); },
     async stop() { await Promise.all(workers.map(worker => worker.stop())); } };

@@ -1,3 +1,5 @@
+import { DELIVERY_QUEUES, notifyDeliveryWork } from "./delivery-work-notifications.js";
+import { isCancelledScheduledDispatch } from "./scheduled-dispatch-cancellation.js";
 import { notifyNativeStatusReassessment } from "./native-status-reassessment-notifications.js";
 import { notifyUnsafeWorkspaceExportRecovery } from "./unsafe-workspace-export-notifications.js";
 import { notifyInstructionCollection } from "./instruction-collection-notifications.js";
@@ -85,7 +87,8 @@ export function legacyExecutionNeedsReconciliation(
 export async function legacyExecutionNeedsReconciliationWithEvidence(db: Db, run: Run): Promise<boolean> {
   return await hasUnrestoredRemoteWorkspace(db, run) ||
     (legacyExecutionNeedsReconciliation(run) && !(await isPreDispatchReviewWaitVerified(db, run))
-      && !(await isPreDispatchExecutionWaitVerified(db, run)));
+      && !(await isPreDispatchExecutionWaitVerified(db, run))
+      && !(await isCancelledScheduledDispatch(db, run)));
 }
 
 /** Persist the failed legacy run, owned lock release and operator decision together. */
@@ -219,6 +222,7 @@ export async function terminalizeLegacyExecution(input: {
         wakePolicy: null, monitorPolicy: null,
         nextAction: "The original sandbox is retained for workspace repair. Verify its exact stop receipt, recover the missing files, and record workspaceRepairEvidence without changing the current task. Repair does not replay the stopped run. Explicitly remove the retained allocation after recovery.",
       };
+      await notifyDeliveryWork(tx, DELIVERY_QUEUES.delegatedRecoveryFeedback, JSON.stringify({ companyId: run.companyId }));
       if (existing) await tx.update(issueRecoveryActions).set(values).where(eq(issueRecoveryActions.id, existing.id));
       else await tx.insert(issueRecoveryActions).values({ ...values, companyId: run.companyId,
         sourceIssueId: task.id, kind: "active_run_watchdog",

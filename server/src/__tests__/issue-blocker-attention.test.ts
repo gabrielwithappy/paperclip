@@ -11,6 +11,7 @@ import {
   heartbeatRuns,
   issueApprovals,
   issueRelations,
+  issueRecoveryActions,
   issueThreadInteractions,
   issues,
 } from "@paperclipai/db";
@@ -178,6 +179,22 @@ describeEmbeddedPostgres("issue blocker attention", () => {
       attentionBlockerCount: 0,
       sampleBlockerIdentifier: "PBC-2",
     });
+  });
+
+  it("does not count a recovery-deferred request as active child work", async () => {
+    const { companyId, agentId } = await createCompany("PBR");
+    const parentId = await insertIssue({ companyId, identifier: "PBR-1", title: "Caller", status: "blocked" });
+    const childId = await insertIssue({ companyId, identifier: "PBR-2", title: "Callee", status: "in_progress", parentId, assigneeAgentId: agentId });
+    await block({ companyId, blockerIssueId: childId, blockedIssueId: parentId });
+    await db.insert(agentWakeupRequests).values({ companyId, agentId, source: "automation", status: "deferred_issue_execution",
+      payload: { issueId: childId, executionWait: { reason: "execution_recovery" } } });
+    const parent = (await svc.list(companyId, { status: "blocked" })).find(issue => issue.id === parentId);
+    expect(parent?.blockerAttention).toMatchObject({ state: "needs_attention", coveredBlockerCount: 0, blockingTreeLive: false });
+    await db.insert(issueRecoveryActions).values({ companyId, sourceIssueId: childId, kind: "active_run_watchdog",
+      ownerType: "board", status: "escalated", cause: "legacy_execution_requires_reconciliation",
+      fingerprint: randomUUID(), evidence: { runId: randomUUID() }, nextAction: "Inspect recovery" });
+    const waiting = (await svc.list(companyId, { status: "blocked" })).find(issue => issue.id === parentId);
+    expect(waiting?.blockerAttention).toMatchObject({ state: "needs_attention", coveredBlockerCount: 0, blockingTreeLive: false });
   });
 
   it("classifies an assigned backlog blocker leaf without a waiting path as attention-needed", async () => {

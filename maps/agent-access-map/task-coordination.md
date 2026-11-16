@@ -70,6 +70,14 @@ credentials/run context; inspect its result and applicable persistence/attributi
 Assert the relevant denied actor, owner, company or mode from Policy. Review the
 remaining operations before qualifying the whole capability.
 
+Recovery notices follow direct blocker edges within the company and do not widen
+private task visibility. They keep the caller on the existing dependency wait;
+they grant no execution or recovery authority. A cancelled scheduled retry can
+accept a new authorized request only with verified pre-dispatch evidence. Older
+rows with unknown execution remain held. Service evidence is in
+[feedback tests](../../server/src/services/recovery/delegated-feedback.test.ts);
+this does not establish agent credential verification.
+
 Gaps: Dedicated set_dependencies is current-task scoped. Generic `call_api`
 forwards blockedByIssueIds to the REST route and retains its ownership checks.
 

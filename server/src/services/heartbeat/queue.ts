@@ -1,3 +1,4 @@
+import { scheduledDispatchCancellationResult } from "../scheduled-dispatch-cancellation.js";
 import { PersistedExecutionWaitRefusal, writeDeferredExecutionWait } from "../deferred-execution-wait.js";
 import { notifyDeferredExecutionWork } from "../deferred-execution-notifications.js";
 import type { DeferredReceiptRecoveryOptions } from "../deferred-execution-notifications.js";
@@ -3549,6 +3550,7 @@ export function createHeartbeatQueue(db: Db, dependencies: HeartbeatQueueDepende
               .update(heartbeatRuns)
               .set({
                 status: "cancelled",
+                resultJson: scheduledDispatchCancellationResult(now),
                 finishedAt: now,
                 error: reason,
                 errorCode: issueCancelled

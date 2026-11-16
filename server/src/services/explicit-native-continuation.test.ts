@@ -1967,7 +1967,7 @@ const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTes
     expect(prior.status).toBe("failed");
   });
 
-  it.each(["native", "before_selection"])("offers and admits an exact Retry for native preparation cancelled before provider startup: %s", async phase => {
+  it.each(["native", "before_selection", "scheduled"])("offers and admits an exact Retry for native preparation cancelled before provider startup: %s", async phase => {
     const f = await seedCancelledStartup();
     if (phase === "before_selection") {
       await db.delete(nativeRunFinalizations).where(eq(nativeRunFinalizations.runId, f.sourceRunId));
@@ -1975,6 +1975,15 @@ const support = externalUrl ? { supported: true } : await getEmbeddedPostgresTes
         runnerProfileJson: { adapterDispatch: { adapterType: "paperclip_runner" } },
         resultJson: { startupCancellation: { beforeNativeSelection: true }, startupPreparationSettledAt: new Date().toISOString() },
       }).where(eq(heartbeatRuns.id, f.sourceRunId));
+    }
+    if (phase === "scheduled") {
+      await db.delete(nativeRunFinalizations).where(eq(nativeRunFinalizations.runId, f.sourceRunId));
+      await db.delete(environmentLeases).where(eq(environmentLeases.heartbeatRunId, f.sourceRunId));
+      await db.update(heartbeatRuns).set({ runtimeMode: "legacy", status: "scheduled_retry", startedAt: null, finishedAt: null,
+        runtimeModeResolvedAt: null, nativeIssueId: null, controllerBootId: null, controllerLeaseExpiresAt: null,
+        resultJson: null,
+      }).where(eq(heartbeatRuns.id, f.sourceRunId));
+      await heartbeatService(db).cancelRun(f.sourceRunId, "operator stop", { suppressImmediateRecovery: true });
     }
     const blocker = await getExecutionBlocker(db, f.companyId, f.issueId);
     expect(blocker).toMatchObject({ runId: f.sourceRunId, canRetry: true });

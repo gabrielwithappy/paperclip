@@ -1875,6 +1875,34 @@ For a board operator, the intended meaning is:
 
 That is the execution contract Paperclip should present to operators.
 
+### Cancelled scheduled retries and dependent feedback
+
+A scheduled retry is a separate, undispatched run. Cancellation records
+`startupCancellation.beforeScheduledDispatch` only while holding the run's
+promotion fence and verifying that no executor claim, dispatch, process,
+provider event, native coordinator or environment lease exists. Continuation
+rechecks that evidence. Missing PIDs alone and historical cancelled rows without
+the receipt do not establish safety. Operator Stop, task cancellation, pause,
+approval and budget gates remain in force; only a new authorized request may
+continue. The cancelled retry is never replayed.
+
+Recovery holds use the execution-blocker predicate in the blocker attention
+view. A deferred execution wait or an `in_progress` label alone is not live work.
+Human approval waits retain their existing waiting-path behavior.
+
+An unrecoverable execution leaves a system notice on its source and current,
+nonterminal tasks with a direct `blocks` dependency. Structural ancestry alone
+is not a delivery route. Private evidence stays within its privacy root. The
+notice names the board's recovery decision and keeps the caller on its explicit
+dependency wait; it does not wake the caller through a blocked, paused, budget or
+approval gate. Normal dependency resolution still owns the later wake.
+
+Notices and the recovery-action delivery cursor commit together. The shared
+coordinator reconstructs pending incidents at startup and reacts to recovery
+action mutations. It retries concrete delivery failures and becomes idle after
+settlement. Existing notices prevent duplicates even if another recovery writer
+replaces the action evidence. No schema change or historical proof backfill runs.
+
 ### Cancellation during native startup
 
 Cancellation records a preparation fence while holding the run row lock. Native

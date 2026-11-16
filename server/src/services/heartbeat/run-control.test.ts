@@ -1,6 +1,7 @@
+import { isCancelledNativeStartup } from "../cancelled-native-startup.js";
 import { randomUUID } from "node:crypto";
 import type { Db } from "@paperclipai/db";
-import { activityLog, agents, agentWakeupRequests, caseEvents, caseHandoffs, cases, companies, environmentLeases, heartbeatRuns, issueComments, issues, nativeRunFinalizations } from "@paperclipai/db";
+import { activityLog, agents, agentWakeupRequests, caseEvents, caseHandoffs, cases, companies, environmentLeases, heartbeatRuns, heartbeatRunEvents, issueComments, issues, nativeRunFinalizations } from "@paperclipai/db";
 import { eq, inArray, sql } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { runningProcesses } from "../../adapters/index.js";
@@ -160,6 +161,31 @@ describe.skipIf(!runControlPostgresSupport.supported)("heartbeat run-control dat
     if (status === "queued" || status === "running") {
       expect(await control.cancelRunInternal(run.id)).toMatchObject({ status: "cancelled" });
     }
+  });
+
+  it("records proof for a cancelled scheduled run that was never claimed", async () => {
+    const { company, agent } = await fixture();
+    const [run] = await db.insert(heartbeatRuns).values({ companyId: company.id, agentId: agent.id,
+      status: "scheduled_retry", runtimeMode: "legacy" }).returning();
+    const cancelled = await createHeartbeatRunControl(db, callbacks(db)).cancelRunInternal(run.id);
+    expect(cancelled?.resultJson?.startupCancellation).toMatchObject({ beforeScheduledDispatch: true });
+    expect(await isCancelledNativeStartup(db, cancelled!, undefined)).toBe(true);
+    await db.insert(heartbeatRunEvents).values({ companyId: company.id, agentId: agent.id, runId: run.id,
+      seq: 1000, eventType: "adapter.invoke" });
+    expect(await isCancelledNativeStartup(db, cancelled!, undefined)).toBe(false);
+  });
+
+  it.each(["started", "dispatch", "pid", "historical"])("does not invent a never-dispatched proof for %s evidence", async evidence => {
+    const { company, agent } = await fixture();
+    const [run] = await db.insert(heartbeatRuns).values({ companyId: company.id, agentId: agent.id,
+      status: evidence === "historical" ? "cancelled" : "scheduled_retry", runtimeMode: "legacy",
+      ...(evidence === "started" ? { startedAt: new Date() } : {}),
+      ...(evidence === "dispatch" ? { runtimeModeResolvedAt: new Date() } : {}),
+      ...(evidence === "pid" ? { processPid: process.pid } : {}),
+      ...(evidence === "historical" ? { finishedAt: new Date() } : {}),
+    }).returning();
+    const cancelled = await createHeartbeatRunControl(db, callbacks(db)).cancelRunInternal(run.id);
+    expect(await isCancelledNativeStartup(db, cancelled!, undefined)).toBe(false);
   });
 
   it("can supersede a retry that is still scheduled", async () => {
@@ -326,7 +352,7 @@ describe.skipIf(!runControlPostgresSupport.supported)("heartbeat run-control dat
     }).returning();
     const [run] = await db.insert(heartbeatRuns).values({
       companyId: company.id, agentId: agent.id, issueId: issue.id, status: "scheduled_retry",
-      runtimeMode: "legacy", runtimeModeResolvedAt: new Date(), responsibleUserId: "operator",
+      runtimeMode: "legacy", responsibleUserId: "operator",
       scheduledRetryAt: new Date(), scheduledRetryReason: "transient_failure", contextSnapshot: { issueId: issue.id },
     }).returning();
     await db.update(issues).set({ executionRunId: run.id }).where(eq(issues.id, issue.id));
@@ -345,7 +371,7 @@ describe.skipIf(!runControlPostgresSupport.supported)("heartbeat run-control dat
     );
     try {
       await Promise.race([claimReached, cancellation.then(() => { throw new Error("Cancellation did not reach settlement"); })]);
-      expect((await deps.getRun(run.id))?.resultJson?.startupCancellation).toBeTruthy();
+      expect((await deps.getRun(run.id))?.resultJson?.startupCancellation).toMatchObject({ beforeScheduledDispatch: true });
       expect(await createPostgresRunDispatchAdapter(db).promoteOrCancelDueRetry({
         companyId: company.id, runId: run.id, now: new Date(),
       })).toMatchObject({ outcome: "not_promoted" });

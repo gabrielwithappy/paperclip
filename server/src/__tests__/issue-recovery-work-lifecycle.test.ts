@@ -19,7 +19,7 @@ function fixture() {
   });
   const load = vi.fn((table: unknown, distinct = false) => distinct
     ? table === issueRecoveryActions ? rows.actions : rows.blockers
-    : table === issueWatchdogs ? rows.watchdogs : rows.issues);
+    : table === issueRecoveryActions ? [] : table === issueWatchdogs ? rows.watchdogs : rows.issues);
   const query = (distinct = false) => ({ from: (table: unknown) => ({ where: () => ({ orderBy: () => ({ limit: async () => load(table, distinct) }) }) }) });
   const db: any = installDatabaseWorkSignals({ execute,
     select: () => query(), selectDistinct: () => query(true),

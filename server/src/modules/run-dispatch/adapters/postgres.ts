@@ -1,3 +1,4 @@
+import { scheduledDispatchCancellationResult } from "../../../services/scheduled-dispatch-cancellation.js";
 import { notifyDeferredExecutionWork } from "../../../services/deferred-execution-notifications.js";
 import { hasRequiredWorkspaceRecovery } from "../../../services/workspace-restore-recovery-state.js";
 import { readNativeWorkspaceSyncReference } from "../../../services/native-runtime/native-workspace-sync.js";
@@ -742,6 +743,7 @@ export function createPostgresRunDispatchAdapter(
       .update(heartbeatRuns)
       .set({
         status: "cancelled",
+        resultJson: scheduledDispatchCancellationResult(input.now),
         finishedAt: input.now,
         error: input.reason,
         errorCode: input.errorCode,

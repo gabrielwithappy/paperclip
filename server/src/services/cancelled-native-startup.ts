@@ -1,3 +1,4 @@
+import { isCancelledScheduledDispatch } from "./scheduled-dispatch-cancellation.js";
 import { isPreDispatchReviewWait } from "./pre-dispatch-review-wait.js";
 import { and, eq, inArray, isNotNull, or } from "drizzle-orm";
 import { environmentLeases, heartbeatRunEvents, heartbeatRuns, nativeRunFinalizations, type Db } from "@paperclipai/db";
@@ -33,6 +34,7 @@ export async function canRetryStoppedRun(db: Db, run: Run): Promise<boolean> {
 export async function isCancelledNativeStartup(db: Db, run: Run, coordinator: Coordinator | undefined) {
   if (run.status !== "cancelled" || !run.finishedAt || run.processPid || run.processGroupId ||
       run.processStartedAt || run.sessionIdAfter) return false;
+  if (!coordinator && await isCancelledScheduledDispatch(db, run)) return true;
   const cancellation = run.resultJson?.startupCancellation as Record<string, unknown> | undefined;
   // Older builds could omit the cancellation fence or its unwind marker. Their immutable
   // native-adapter claim and unresolved preparation stage still prove that

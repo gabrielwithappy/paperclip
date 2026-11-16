@@ -53,6 +53,13 @@ check creation order, current status, links, and duplicate suppression.
 
 Manual: Block one task on another, finish the prerequisite, and observe the dependent task’s eligible continuation. Follow parent/child links back to the source request. Verify no duplicate run or false parent completion occurs.
 
+When a dependency cannot recover safely, its task and direct dependents show a
+recovery notice. A saved request is not evidence of execution. Recovery-deferred
+requests and status alone do not make a blocker appear active. Verify with
+[blocker attention](../../server/src/__tests__/issue-blocker-attention.test.ts)
+and [feedback delivery](../../server/src/services/recovery/delegated-feedback.test.ts).
+These DB tests do not establish a live remote adapter journey.
+
 ### `review-and-controls`
 
 Automated: [execution policy](../../server/src/__tests__/issue-execution-policy.test.ts), [tree control](../../server/src/__tests__/issue-tree-control-service.test.ts), and [signoff browser suite](../../tests/e2e/signoff-policy.spec.ts) target these layers. A linked suite is not a claim that its current run is green.
