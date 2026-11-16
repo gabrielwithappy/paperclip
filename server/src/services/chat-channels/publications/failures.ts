@@ -1,3 +1,4 @@
+import { ChatProgressValidationError } from "../progress-validation-error.js";
 import { notifyChatResponseAvailability } from "../../chat-response-availability.js";
 import { notifyChatEndpointConfiguration } from "../configuration-work-notifications.js";
 import { notifyChatConnectionHealth } from "../connection-health-notifications.js";
@@ -66,6 +67,10 @@ export function createChatPublicationFailures(db: Db, options: PublicationFailur
           reason:
             "Provider accepted the publication, but Paperclip could not confirm its durable result",
         }
+      : error instanceof ChatProgressValidationError
+        ? error.retryable
+          ? { kind: "retry" as const, retryAfterMs: Math.min(60_000, 2 ** Math.max(0, attempts) * 1_000), reason: error.message }
+          : { kind: "failed" as const, reason: error.message }
       : error instanceof NativeChatReviewPresentationContentionError
         ? { kind: "retry" as const, retryAfterMs: 250, reason: error.message }
         : error instanceof FailedChatRetryPublicationReadError
@@ -322,6 +327,11 @@ export function createChatPublicationFailures(db: Db, options: PublicationFailur
           publicationId: publication.id,
           error: failure,
           disposition: disposition.kind,
+          ...(error instanceof ChatProgressValidationError ? {
+            stage: error.stage,
+            databaseCode: error.databaseCode,
+            attempts,
+          } : {}),
         },
         "chat publication failed",
       );

@@ -1,16 +1,16 @@
 ---
 status: active
 priority: high
-updated: 2026-11-16T23:14:35+09:00
-reviewed_by: [principles_review, qa_review, qa_slack_plan, debug_slack_plan]
-authorization: DB cleanup and investigation/plan authorized; product code implementation not authorized
+updated: 2026-11-16T23:32:11+09:00
+reviewed_by: [principles_review, qa_review, qa_slack_plan, debug_slack_plan, qa_slack_recovery]
+authorization: Implementation and QA review authorized by user on 2026-11-16
 ---
 
 # Slack 답변 전송 정체: 원인 및 수정 계획
 
 ## 목표와 범위
 
-Slack DM에서 생성된 답변이 사용자에게 전달되지 않는 장애를 분석하고 기존 차단 데이터를 정리한다. 기존 DB 정리 이력을 보존하고, 이번 후속 작업에서는 계획 수정과 QA·디버깅 리뷰만 수행한다. 제품 코드 수정, 추가 DB 변경, 실제 전송 재개 및 재시작은 이번 범위에 포함하지 않는다. 회사 경계, 중복 전송 방지, 실제 전송 결과 불명 메시지의 운영자 해소 절차를 유지한다.
+Slack DM에서 생성된 답변이 사용자에게 전달되지 않는 장애를 분석하고 진행 알림의 전송 전 DB 검사 실패 경로를 수정한다. 2026-11-16 후속 사용자 요청으로 계획 구현과 독립 QA·수정이 승인되었다. 기존 DB 정리 이력을 보존하고 회사 경계, 중복 전송 방지, 실제 전송 결과 불명 메시지의 운영자 해소 절차를 유지한다. 실제 복구는 인증된 관리 경로와 provider 확인을 확보한 범위에서만 수행하며, 미확보 항목은 미검증으로 남긴다.
 
 ## 확인된 원인과 타임라인
 
@@ -98,15 +98,30 @@ DB 쿼리 실패와 정상 조회 결과가 없는 경우는 다르다. 이번 �
 - 실제 사용자 세션에서 취소된 사고 대상 기록의 ID·현재 상태·노출 및 후행 전송을 확인한다. 별도의 승인된 `delivery_unknown` 검증 건에서 기록 발견 → 허용된 해소 버튼 → 감사 이력 → 후행 전송 재개의 경로를 검증한다. 취소된 사고 기록은 검증 목적으로 되돌리지 않는다. 권한 없는 사용자 거부 및 현재 403 원인도 확인한다. 화면 접근이나 provider 확인을 못 하면 해당 인수 항목을 미검증으로 남긴다.
 - 실제 Slack에서 신고 대상 답변의 provider message ID와 사용자에게 보이는 결과를 확인한다. DB `published`나 API 성공만으로 실제 수신을 단정하지 않는다.
 - 후속 구현에서는 변경 범위의 서버 테스트를 먼저 실행한다. UI 변경 시 토큰 게이트와 관련 UI 검증, 타입 계약 변경 시 해당 소비자까지 직렬 typecheck, map 변경 시 map 검사 등 저장소 규칙을 적용한다.
-- 이번 계획 수정·읽기 전용 리뷰에는 테스트·빌드·typecheck를 실행하지 않는다. 문서 변경 검토와 `git diff --check`, 새 문서 whitespace 검사를 수행한다. 리뷰는 구현 성공이나 라이브 복구 증거가 아니다.
+- 최초 계획 수정·읽기 전용 리뷰 당시에는 테스트·빌드·typecheck를 실행하지 않았다. 문서 변경 검토와 `git diff --check`, 새 문서 whitespace 검사를 수행한다. 리뷰는 구현 성공이나 라이브 복구 증거가 아니다.
+
+## 구현 및 QA 실행 결과 (2026-11-16)
+
+- `publication-replacement.ts`의 issue → run 잠금 조회 트랜잭션만 `ChatProgressValidationError`로 감쌌다. 정상 조회의 기록 부재 의미, 잠금 순서와 provider transport 경계는 변경하지 않았다.
+- `progress-validation-error.ts`는 Drizzle cause의 구조화된 허용 코드만 검사한다. 알려진 일시 DB 오류는 retryable이고, 영구·미분류 오류는 non-retryable이다. query·params·원문·cause는 진단에 보존하지 않는다. `CONNECTION_ENDED`는 종료된 로컬 pool이므로 재시도 대상으로 추가하지 않았다.
+- `failures.ts`는 해당 경계 오류만 기존 publication retry/failed 처리에 연결한다. 기존 총 5회 예산과 지수 대기, 트랜잭션 work signal, lease 검증을 재사용한다. provider 수락 우선 분기와 공통 provider 분류기의 기본 `delivery_unknown`은 그대로다. migration·UI·권한·polling 변경은 없다.
+- 수정 전 재현: 경계 wrapping만 일시 제거하고 동일 worker fixture를 실행했다. 실제 PostgreSQL `40001` 오류를 status/errorCode SELECT 위치에서 발생시켜 provider 호출 0회 후 `delivery_unknown`이 되는 실패를 확인했다. 검증 후 구현을 복원했다. 이 재현은 현재 소스의 증거이며 사고 당시 SQLSTATE나 revision을 확정하지 않는다.
+- 새 worker 6개 사례: Slack/Telegram 일시 오류 회복 2건, coordinator deadline 자동 재개 및 idle, 5회 소진/후행 답변/실행 유지, 영구 오류 실패, 실패 저장 자체의 PostgreSQL 오류 → worker 종료 → stale 격리 → board Activity GET/resolve POST → 감사 취소/후행 전송. 실패 저장까지 거부하면 즉시 안전하게 자동 복구된다고 주장하지 않는다.
+- QA `qa_slack_recovery`는 코드·오류 주입·재현 로그를 독립 검토했다. 관리 API의 204 응답 테스트 수정과 임의 5자 진단 코드 제한을 반영했다. 현재 추가 중대 코드 결함은 보고되지 않았다.
+- 1차 새 회귀 5건 통과 후 coordinator/API 검증을 추가했다. 확장 실행에서 27건 통과, 1건 실패(테스트 기대 200, 실제 API 계약 204)가 있었다. 기대값 수정 뒤 실패 사례와 누락됐던 provider 분류/수락 후 저장 실패를 별도로 실행하여 37건이 통과했다. 성공한 테스트는 합계 64개 고유 사례(통합 15, 안전 진단 14, provider 분류 35)이며, 필터 밖 전체 suite 통과를 의미하지 않는다.
+- 기존 malformed preparation, ambiguous provider send/감사 replay, terminal progress supersession, connection-manager 거부, 회사 경계, 정확 lease orphan 격리/수락 후 lease 상실, commit wake/빈 슬롯 재예약을 함께 검증했다. 실제 수락 후 저장 실패는 task-bound `/close` publication fixture로 `delivery_unknown` 보존을 확인했다.
+- 재현 명령: `pnpm --filter @paperclipai/server exec vitest run src/__tests__/chat-channels.integration.test.ts -t 'pretransport run progress database failures'`; 진단은 `src/services/chat-channels/progress-validation-error.test.ts`, provider 분류는 `src/services/chat-publication-errors.test.ts`를 실행한다. 실행 로그는 `/tmp/slack-progress-red.log`, `/tmp/slack-progress-test.log`, `/tmp/slack-progress-qa.log`, `/tmp/slack-progress-final.log`에 임시 보존한다.
+- `node scripts/check-maps.mjs` 통과: 35 areas/192 capability IDs. `git diff --check` 통과. `pnpm --filter @paperclipai/server typecheck` 통과(다른 typecheck가 없음을 확인하고 테스트 완료 후 단독 실행). UI 변경이 없어 token gate/브라우저 suite는 실행하지 않는다. 좁은 서버 변경이므로 repo-wide test/build/typecheck는 실행하지 않는다.
 
 ## 현재 상태
 
-DB의 선행 차단 한 건 정리 완료. 제품 코드 수정 없음. DB 정리 직후 관측은 후행 7건 `pending`이며 이후 상태는 재조회하지 않았다. 실제 전송 복구 및 근본 코드 수정은 미완료다. 최초 DB 오류의 SQLSTATE는 확보하지 못했다.
+코드 구현과 독립 QA 수정 완료. 운영 인수는 미완료이므로 문서 상태는 active를 유지한다. 이전 DB 정리 직후 후행 7건 pending 관측은 역사적 기록이며 최신 상태로 간주하지 않는다.
 
-현재 승인 범위는 리뷰 및 문서 수정이다. 위 구현·실제 전송 재개·유지보수 재시작은 이번 리뷰에서 실행하지 않는다.
+2026-11-16 23:27 KST 현재 3110 health는 authenticated/private 및 revision `ff0cdd1ad77cec291002fe50b123ba85c501e5d0`을 반환했다. 세션 없는 사고 endpoint 활동 GET은 **401 Unauthorized**다. 이 요청은 과거 403과 같은 인증 주체라는 증거가 없으므로 과거 403 원인을 확정하지 못했다. 원본 임시 증거 디렉터리에는 `before.json`만 있어 최초 SQLSTATE/revision 로그는 확보하지 못했다. Paperclip task/run 인증 환경이나 연결된 Slack 도구도 제공되지 않았다.
 
-Next concrete action: 후속 구현 작업에서 진행 알림 SELECT와 실패 상태 저장에 각각 오류를 주입하는 재현을 만들고, 기존 실패 예산 및 stale 복구 경계부터 검증한다.
+따라서 취소된 사고 publication의 현재 노출·후행 답변 상태, 실제 사용자 Activity 화면, 실제 Slack provider message ID·수신·중복 여부는 미검증/미복구로 남긴다. 인증 우회·직접 SQL 복구·사고 상태 되돌리기·관리 서버 재시작·배포는 수행하지 않았다. fixture board actor API 검증은 실제 세션 로그인 증거가 아니다.
+
+Next concrete action: 인증된 운영자 세션에서 사고 endpoint의 활동 페이지를 조회하여 취소 기록과 후행 publication의 최신 상태를 대조하고 실제 Slack 메시지 ID·수신을 확인한다.
 
 ## 리뷰 반영
 

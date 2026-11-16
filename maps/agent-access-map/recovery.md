@@ -446,6 +446,12 @@ Policy: Only current delivery_unknown; credential lease/exact publication; stage
 
 Evidence: `source-only` — [channel management](../../server/src/routes/chat-channels.ts), [publication resolution](../../server/src/services/chat-channels/publications/resolution.ts); reviewed at `3bbc2104b65caf9f7763938a01260a5673e12f7a`. No live provider proof.
 
+Local regression: the `pretransport run progress database failures` cases in
+[channel integration](../../server/src/__tests__/chat-channels.integration.test.ts) cover
+failed-state-write quarantine, board Activity GET and resolve POST cancellation,
+audit and later reply release. Board actors are fixture-injected; this is neither
+agent-access verification nor a live authenticated-session/provider proof.
+
 Verification: `not-run` — Inspect real provider, choose truthful resolution, reload/audit exact source/result. Agent/no connection grant/wrong endpoint/stale phase/nonunknown state denied. Retry must not silently duplicate.
 
 Gaps: Accepted send request isn't recipient receipt; per-provider live proof required.

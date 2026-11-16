@@ -53,6 +53,15 @@ Setup is covered in [connection setup](./connection-setup.md).
 
 Automated: [channel integration](../../server/src/__tests__/chat-channels.integration.test.ts) uses provider fixtures; it does not prove a live Slack, Discord, Teams, Telegram, GitHub, email, or Photon delivery.
 
+Progress delivery regression: the `pretransport run progress database failures` cases in
+[channel integration](../../server/src/__tests__/chat-channels.integration.test.ts) inject
+PostgreSQL errors into the local run-ownership snapshot. They check Slack/Telegram zero
+provider calls on failure, bounded retries, final-response release after exhaustion,
+coordinator deadlines and idle settlement, and failed-state-write quarantine followed by
+board API activity discovery and audited cancellation. Provider ambiguity remains a
+separate operator decision. These fixtures do not prove live Slack receipt or access in
+a particular user's session.
+
 Monitor continuation regression: [database checks](../../server/src/services/chat-monitor-continuation.test.ts)
 verify the exact originating conversation, rejected forged/mismatched receipts,
 one working publication, no completion for a yielded run, and saved-response

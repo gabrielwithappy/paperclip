@@ -1,3 +1,4 @@
+import { ChatProgressValidationError } from "./progress-validation-error.js";
 import { imessageProgressSupersessionReason } from "./imessage-photon/publications.js";
 import { fastResponseRequests } from "@paperclipai/db";
 
@@ -120,6 +121,8 @@ export function createChatPublicationReplacement(db: Db, options: ChatPublicatio
         )
         .for("update")
         .then((rows) => rows[0] ?? null);
+    }).catch((error: unknown) => {
+      throw new ChatProgressValidationError(error);
     });
     const baseProgressKey = `run:${runId}:${progress}:${publication.endpointId}`;
     const nativeProgressPrefix = `run:${runId}:working:${publication.endpointId}:native:`;

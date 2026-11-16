@@ -1440,6 +1440,17 @@ The first page refreshes automatically; older pages do not poll. Mutable action 
 entry forward in time, so this is a live ledger, not a historical snapshot. Requests without pagination
 parameters retain the recent-100 array response for existing clients.
 
+Run progress publications validate current issue/run ownership before opening provider transport.
+Structured transient database failures in that snapshot use the existing publication retry
+budget (five total attempts); exhaustion or a permanent local error marks the progress
+publication failed and releases later replies. This does not fail the agent run. Provider
+response loss or failure to save an accepted result remains `delivery_unknown` and
+requires an audited operator resolution. If even the failure-state write fails, the
+existing stale-attempt quarantine remains authoritative; a restart does not prove no send.
+Diagnostics include only the validation stage and known database error codes, never query
+parameters. Reproduce with the `pretransport run progress database failures` cases in
+`server/src/__tests__/chat-channels.integration.test.ts`.
+
 Slack callback diagnostics tolerate HTTP between a TLS proxy and Paperclip when the public host,
 port, and path still match. A changed authority or path remains stale. This comparison only affects
 health display; it does not trust forwarded headers or alter Slack signature verification.

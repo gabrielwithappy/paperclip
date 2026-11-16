@@ -68581,6 +68581,183 @@ describeEmbeddedPostgres("chat channel control-plane integration", () => {
     };
   }
 
+  describe("pretransport run progress database failures", () => {
+    async function progressFixture(provider: "slack" | "telegram" = "slack") {
+      const f = await safeNativeProgressFixture(provider, "921");
+      await qualifySetupRoundTrip(f.service, f.endpoint.id, f.thread.thread.channelId);
+      await f.service.test(f.endpoint.id, "owner-user");
+      const runId = randomUUID();
+      await db.insert(heartbeatRuns).values({ id: runId, companyId: f.fixture.companyId,
+        agentId: f.fixture.assignedAgentId, status: "running",
+        contextSnapshot: { issueId: f.conversation.issueId } });
+      const [progress] = await db.insert(chatPublications).values({ companyId: f.fixture.companyId,
+        endpointId: f.endpoint.id, conversationId: f.conversation.id, issueId: f.conversation.issueId,
+        idempotencyKey: `run:${runId}:working:${f.endpoint.id}`,
+        payload: { text: "Working progress", progressState: "working" },
+        state: "pending", createdAt: new Date(Date.now() - 60_000) }).returning();
+      const [final] = await db.insert(chatPublications).values({ companyId: f.fixture.companyId,
+        endpointId: f.endpoint.id, conversationId: f.conversation.id, issueId: f.conversation.issueId,
+        idempotencyKey: `test-final:${runId}`, payload: { text: "Final response" }, state: "pending" }).returning();
+      f.providerRuntime.posts.length = 0;
+      const read = () => db.select().from(chatPublications).where(eq(chatPublications.id, progress.id)).then(rows => rows[0]!);
+      return { ...f, runId, progress, final, read };
+    }
+
+    function injectProgressReadFailure(code: "40001" | "42501", failSettlement = false) {
+      const transaction = db.transaction.bind(db);
+      let reads = 0, settlements = 0;
+      const spy = vi.spyOn(db, "transaction").mockImplementation((async (callback, config) =>
+        transaction(async tx => {
+          const select = tx.select.bind(tx);
+          vi.spyOn(tx, "select").mockImplementation(((...fields: Parameters<typeof select>) => {
+            const builder = select(...fields), from = builder.from.bind(builder);
+            builder.from = ((...args: Parameters<typeof from>) => {
+              const query = from(...args);
+              if (args[0] === heartbeatRuns && fields[0] && Object.keys(fields[0]).join(",") === "status,errorCode") {
+                query.execute = async () => {
+                  reads++;
+                  // Raise a real PostgreSQL error only in the worker's exact
+                  // run-ownership SELECT. Claim and unrelated reads stay real.
+                  await tx.execute(code === "40001"
+                    ? sql`do $$ begin raise exception using errcode = '40001', message = 'PRIVATE SQL parameters'; end $$`
+                    : sql`do $$ begin raise exception using errcode = '42501', message = 'PRIVATE SQL parameters'; end $$`);
+                  return [];
+                };
+              }
+              return query;
+            }) as typeof builder.from;
+            return builder;
+          }) as typeof tx.select);
+          if (failSettlement) {
+            const update = tx.update.bind(tx);
+            vi.spyOn(tx, "update").mockImplementation(((table: Parameters<typeof update>[0]) => {
+              const builder = update(table), set = builder.set.bind(builder);
+              builder.set = ((values: Parameters<typeof set>[0]) => {
+                const query = set(values);
+                if (table === chatPublications && (values as { state?: string }).state === "retry") {
+                  query.execute = async () => {
+                    settlements++;
+                    await tx.execute(sql`do $$ begin raise exception using errcode = '08006', message = 'settlement database unavailable'; end $$`);
+                    return [];
+                  };
+                }
+                return query;
+              }) as typeof builder.set;
+              return builder;
+            }) as typeof tx.update);
+          }
+          return callback(tx);
+        }, config)) as typeof db.transaction);
+      return { restore: () => spy.mockRestore(), reads: () => reads, settlements: () => settlements };
+    }
+
+    it.each(["slack", "telegram"] as const)("retries %s progress before transport and recovers without blocking the final", async provider => {
+      const f = await progressFixture(provider);
+      const fault = injectProgressReadFailure("40001");
+      const wake = vi.fn();
+      const unsubscribe = subscribeDeliveryWork(db, DELIVERY_QUEUES.chatPublications, wake);
+      try {
+        const started = Date.now();
+        await f.service.processPendingPublications(100);
+        expect(fault.reads()).toBe(1);
+        expect(f.providerRuntime.posts).toEqual([]);
+        const progress = await f.read();
+        expect(progress).toMatchObject({ state: "retry", attempts: 1 });
+        expect(progress.nextAttemptAt!.getTime()).toBeGreaterThanOrEqual(started + 2_000);
+        expect(progress.redactedError).toContain("40001");
+        expect(progress.redactedError).not.toContain("PRIVATE");
+        expect(wake).toHaveBeenCalled();
+        expect(await f.service.nextPublicationAt()).toBe(progress.nextAttemptAt!.getTime());
+      } finally { fault.restore(); unsubscribe(); }
+      await db.update(chatPublications).set({ nextAttemptAt: new Date(0) }).where(eq(chatPublications.id, f.progress.id));
+      await f.service.processPendingPublications(100);
+      await f.service.processPendingPublications(100);
+      expect(await f.read()).toMatchObject({ state: "published", attempts: 2 });
+      expect(f.providerRuntime.posts.map(post => post.text)).toEqual(["Working progress", "Final response"]);
+    });
+
+    it("resumes a transient progress failure through the existing coordinator deadline and settles idle", async () => {
+      const f = await progressFixture();
+      const fault = injectProgressReadFailure("40001");
+      const onError = vi.fn();
+      const coordinator = createDeliveryWorkCoordinator({ owner: db, canRun: () => true, onError });
+      try {
+        await registerChatDeliveryWork(coordinator, f.service, () => true).ready;
+        await vi.waitFor(async () => expect(await f.read()).toMatchObject({ state: "retry", attempts: 1 }));
+        expect(f.providerRuntime.posts).toEqual([]);
+        fault.restore();
+        await vi.waitFor(async () => {
+          expect(await f.read()).toMatchObject({ state: "published", attempts: 2 });
+          expect(f.providerRuntime.posts.map(post => post.text)).toEqual(["Working progress", "Final response"]);
+          expect(coordinator.nextWakeAt()).toBeNull();
+        }, { timeout: 10_000 });
+        expect(onError).not.toHaveBeenCalled();
+      } finally { fault.restore(); await coordinator.stop(); }
+    });
+
+    it("exhausts five pretransport attempts and releases the final without failing the run", async () => {
+      const f = await progressFixture();
+      const fault = injectProgressReadFailure("40001");
+      try {
+        for (let attempt = 1; attempt <= 5; attempt++) {
+          await f.service.processPendingPublications(100);
+          expect(await f.read()).toMatchObject({ state: attempt === 5 ? "failed" : "retry", attempts: attempt });
+          if (attempt < 5) {
+            expect(f.providerRuntime.posts).toEqual([]);
+            await db.update(chatPublications).set({ nextAttemptAt: new Date(0) }).where(eq(chatPublications.id, f.progress.id));
+          }
+        }
+        expect(fault.reads()).toBe(5);
+      } finally { fault.restore(); }
+      await f.service.processPendingPublications(100);
+      expect(await f.read()).toMatchObject({ state: "failed", attempts: 5, nextAttemptAt: null });
+      expect(f.providerRuntime.posts.map(post => post.text)).toEqual(["Final response"]);
+      expect(await readHeartbeatRunsById(f.runId)).toEqual([expect.objectContaining({ status: "running" })]);
+    });
+
+    it("fails a definite permanent local error without ambiguous delivery or retries", async () => {
+      const f = await progressFixture();
+      const fault = injectProgressReadFailure("42501");
+      try { await f.service.processPendingPublications(100); }
+      finally { fault.restore(); }
+      expect(fault.reads()).toBe(1);
+      expect(await f.read()).toMatchObject({ state: "failed", attempts: 1, nextAttemptAt: null });
+      await f.service.processPendingPublications(100);
+      expect(f.providerRuntime.posts.map(post => post.text)).toEqual(["Final response"]);
+    });
+
+    it("quarantines an unsaved local failure after worker stop and permits audited cancellation", async () => {
+      const f = await progressFixture();
+      const fault = injectProgressReadFailure("40001", true);
+      try { await f.service.processPendingPublications(100); }
+      finally { fault.restore(); }
+      expect(fault.reads()).toBe(1);
+      expect(fault.settlements()).toBe(1);
+      expect(await f.read()).toMatchObject({ state: "streaming", attempts: 1 });
+      expect(f.providerRuntime.posts).toEqual([]);
+      await f.service.shutdown();
+      await db.update(chatPublications).set({ updatedAt: new Date(Date.now() - 61_000) }).where(eq(chatPublications.id, f.progress.id));
+      const restarted = createService();
+      await restarted.service.processPendingPublications(100);
+      expect(await f.read()).toMatchObject({ state: "delivery_unknown", attempts: 1 });
+      const app = routesApp(db, f.fixture.companyId, restarted.service);
+      const activity = await request(app).get(`/api/chat-endpoints/${f.endpoint.id}/activity?limit=25`).expect(200);
+      expect(activity.body.items.find((item: { id: string }) => item.id === f.progress.id)).toMatchObject({
+        resolutionActions: ["mark_delivered", "retry_anyway", "cancel"],
+      });
+      await request(app).post(`/api/chat-endpoints/${f.endpoint.id}/publications/${f.progress.id}/resolve`)
+        .send({ action: "cancel" }).expect(204);
+      await restarted.service.processPendingPublications(100);
+      expect(await f.read()).toMatchObject({ state: "cancelled", attempts: 1 });
+      expect(await db.select().from(activityLog).where(eq(activityLog.entityId, f.progress.id))).toEqual([
+        expect.objectContaining({ action: "chat.publication_cancel", actorId: "owner-user" }),
+      ]);
+      expect(await db.select().from(chatPublications).where(eq(chatPublications.id, f.final.id))).toEqual([
+        expect.objectContaining({ state: "published", attempts: 1 }),
+      ]);
+    });
+  });
+
   it.each(["replay", "operator retry"] as const)(
     "wakes saved native progress when %s restores eligibility", async owner => {
       const context = await safeNativeProgressFixture("telegram", `12${["replay", "operator retry"].indexOf(owner)}`, "channel", "42", true);
