@@ -1,7 +1,7 @@
 ---
-status: active
+status: complete
 priority: high
-updated: 2026-11-15T00:42:13+09:00
+updated: 2026-11-16T22:28:11+09:00
 authorization: Implementation, local instance installation/activation, commit and push authorized
 reviewed_by: [review_opencode_mcp_plan]
 plan_review: complete
@@ -305,3 +305,12 @@ counter를 두어 승인 후 서버의 approve-and-run 1회와 에이전트 재�
   재시작 후 drain:false, activeRuns:0, pendingWakes:0을 확인했다. 사용자 agent 설정/권한/계정은 변경하지 않았다.
 - README에 실제 install request 형식과 설치 등록·dist·dependencies의 Git 외부 수명을 보완했다.
   커밋은 문서 기록이며 설치 등록 그 자체는 현재 인스턴스 HOME에 유지된다.
+
+## 완료 정리 (2026-11-16)
+
+외부 어댑터 구현·로컬 설치·활성화 범위는 완료했다. 후속
+[도구 이름 길이 수정 계획](2026-11-15-opencode-mcp-tool-name-budget.md)에서
+0.1.1 배포, 실제 모델의 긴 이름 도구 호출, 실제 실패 작업 재개 및 Slack 최종 게시까지 확인했다.
+현재 소스의 패키지 버전과 `DELIVERY_VERSION`도 0.1.1이다.
+위 초기 검증의 한계와 후속 계획에 기록된 미실행 검증·실패 이력은 그대로 보존한다.
+추가 구현 작업은 없으며 후속 요청 시 두 문서의 기존 검증 결과를 참조한다.
