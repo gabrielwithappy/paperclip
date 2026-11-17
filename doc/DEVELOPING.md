@@ -1023,7 +1023,7 @@ the development server's unbundled module graph on each navigation. Browser
 assertion deadlines and retries remain unchanged. Use `pnpm dev` separately when
 verifying Vite/HMR behavior.
 
-For normal issue work, start with the smallest targeted check that proves the change. Reserve repo-wide typecheck/build/test runs for PR-ready handoff or changes broad enough that narrow checks do not cover the risk.
+For normal issue work, start with the smallest targeted check that proves the change. Run typechecks only for changed packages and consumers whose type contracts are affected; do not use a repository-wide typecheck as a precaution when a narrower check covers the change. Reuse a successful result while its source, dependencies, configuration, and generated inputs remain unchanged. On the shared development host, check for an existing typecheck and never run two typecheck processes concurrently. Do not overlap typechecks with memory-intensive builds or test suites; builds that invoke TypeScript count as typecheck workloads. Expand verification only when the change's impact requires it or the user explicitly asks for broader checks.
 
 #### Embedded Postgres template cache
 
@@ -2264,6 +2264,12 @@ The service supplies lifecycle effects, execution callbacks, worktree gates, and
 its process-wide execution and wakeup promise sets. Forwarding callbacks preserve
 construction order for retry and recovery services. Keep queue policy changes
 separate from this extraction and from adapter execution changes.
+
+Canonical stage handoff identity is in `heartbeat/stage-handoff.ts`. Queue admission
+and claim validate the saved status version, participant and decision generation.
+Lease-blocked handoffs reuse deferred receipts. `deferred-receipt-work.ts` restores
+and consumes them through ordinary admission on startup, resume and committed
+environment-cleanup signals. Held stages add no periodic retry scan.
 
 Run lifecycle handling is in `server/src/services/heartbeat/run-lifecycle.ts`.
 It owns status transitions, run events and progress, liveness classification,

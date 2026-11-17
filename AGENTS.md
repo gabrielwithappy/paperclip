@@ -217,10 +217,11 @@ Type checking on this shared development host must follow these rules:
 - Run typecheck only for changed packages and consumers whose type contracts changed. Documentation-only changes do not need typecheck, tests, or build.
 - Reuse a successful check when its relevant source, dependencies, configuration, and generated inputs have not changed. A new turn, handoff, commit, or push alone does not require another check.
 - Run only one typecheck process at a time across checkouts and agents on this host. Check for an existing typecheck before starting one; wait for it instead of launching a duplicate. Do not stop another contributor's process without coordinating with them.
-- Run typecheck separately from memory-intensive builds and test suites. A build that invokes TypeScript also counts as a typecheck workload.
+- Do not run repository-wide typechecks as a precaution when a package-scoped check covers the changed contracts. Expand the scope only when dependency or contract impact requires it, and state why.
+- Run typecheck separately from memory-intensive builds and test suites; do not overlap these workloads. A build that invokes TypeScript also counts as a typecheck workload.
 - If typecheck exits with 137 or reports an out-of-memory error, record the failure and stop automatic retries. Reduce the scope or competing workload before one justified retry. Do not launch recursive retries in parallel or increase memory limits as a substitute for reducing concurrency.
 
-Use full repository checks only when the change has broad impact that targeted checks cannot establish, or when explicitly requested. A PR-ready handoff alone does not require repeating full checks. When full checks are needed, run these commands one at a time, with package typechecks serialized:
+Use full repository checks only when the change has broad impact that targeted checks cannot establish, or when explicitly requested. A PR-ready handoff alone does not require repeating full checks. When full checks are needed, run these commands sequentially, never concurrently:
 
 ```sh
 pnpm -r --workspace-concurrency=1 typecheck

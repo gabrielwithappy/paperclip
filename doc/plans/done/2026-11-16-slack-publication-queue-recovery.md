@@ -1,7 +1,7 @@
 ---
-status: active
+status: complete
 priority: high
-updated: 2026-11-16T23:32:11+09:00
+updated: 2026-11-17T00:15:00+09:00
 reviewed_by: [principles_review, qa_review, qa_slack_plan, debug_slack_plan, qa_slack_recovery]
 authorization: Implementation and QA review authorized by user on 2026-11-16
 ---
@@ -115,13 +115,13 @@ DB 쿼리 실패와 정상 조회 결과가 없는 경우는 다르다. 이번 �
 
 ## 현재 상태
 
-코드 구현과 독립 QA 수정 완료. 운영 인수는 미완료이므로 문서 상태는 active를 유지한다. 이전 DB 정리 직후 후행 7건 pending 관측은 역사적 기록이며 최신 상태로 간주하지 않는다.
+요청된 코드 구현과 독립 QA 수정이 완료되었고, 사용자가 운영 확인 테스트를 직접 수행하기로 했다. 이 계획의 구현 범위는 완료로 처리한다. 운영 검증은 사용자 후속 작업이며 아래에 당시 확인 한계를 보존한다. 이전 DB 정리 직후 후행 7건 pending 관측은 역사적 기록이며 최신 상태로 간주하지 않는다.
 
 2026-11-16 23:27 KST 현재 3110 health는 authenticated/private 및 revision `ff0cdd1ad77cec291002fe50b123ba85c501e5d0`을 반환했다. 세션 없는 사고 endpoint 활동 GET은 **401 Unauthorized**다. 이 요청은 과거 403과 같은 인증 주체라는 증거가 없으므로 과거 403 원인을 확정하지 못했다. 원본 임시 증거 디렉터리에는 `before.json`만 있어 최초 SQLSTATE/revision 로그는 확보하지 못했다. Paperclip task/run 인증 환경이나 연결된 Slack 도구도 제공되지 않았다.
 
 따라서 취소된 사고 publication의 현재 노출·후행 답변 상태, 실제 사용자 Activity 화면, 실제 Slack provider message ID·수신·중복 여부는 미검증/미복구로 남긴다. 인증 우회·직접 SQL 복구·사고 상태 되돌리기·관리 서버 재시작·배포는 수행하지 않았다. fixture board actor API 검증은 실제 세션 로그인 증거가 아니다.
 
-Next concrete action: 인증된 운영자 세션에서 사고 endpoint의 활동 페이지를 조회하여 취소 기록과 후행 publication의 최신 상태를 대조하고 실제 Slack 메시지 ID·수신을 확인한다.
+후속 운영 확인은 사용자가 수행한다.
 
 ## 리뷰 반영
 

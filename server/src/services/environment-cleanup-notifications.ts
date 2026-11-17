@@ -1,9 +1,11 @@
+import { notifyDeferredExecutionWork } from "./deferred-execution-notifications.js";
 import { notifyNativeEnvironmentSettlement, type NativeEnvironmentSettlementScope } from "./native-environment-settlement-notifications.js";
 import type { Db } from "@paperclipai/db";
 import { DELIVERY_QUEUES, notifyDeliveryWork } from "./delivery-work-notifications.js";
 
 export async function notifyEnvironmentCleanup(transaction: object, scope?: NativeEnvironmentSettlementScope): Promise<void> {
   await notifyNativeEnvironmentSettlement(transaction, scope);
+  if (scope) await notifyDeferredExecutionWork(transaction, scope);
   await notifyDeliveryWork(transaction, DELIVERY_QUEUES.environmentCleanup);
   await notifyDeliveryWork(transaction, DELIVERY_QUEUES.historicalCleanup);
 }

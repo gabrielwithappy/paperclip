@@ -75,6 +75,22 @@ transaction's task and run locks. Read and comment access follows normal policy.
 Board-initiated reassignments, agent API keys, native executions, and handoffs to
 another agent still require the outgoing execution to stop before ownership changes.
 
+### Stage handoffs during execution cleanup
+
+A server-created review, approval, or changes-requested handoff can wait for the
+outgoing executor's environment lease. The queue preserves that handoff on a
+`deferred_issue_execution` receipt. The receipt records the task status version
+and the stage, participant, return owner, and decision identity. A public wake
+reason or payload cannot establish this internal provenance.
+
+Lease cleanup notifies the existing deferred receipt worker after its transaction
+settles. Startup and resume reconstruct pending receipts from the database.
+Admission reuses the same receipt under the task lock; dispatch checks the current
+handoff again. Superseded stages and later operator Stops cancel the saved handoff.
+Company, agent, pause, budget, and execution gates still apply. A held receipt
+waits for an eligibility signal without adding periodic polling. Past skipped
+receipts are not replayed by this path.
+
 ## 3. Status Semantics
 
 Paperclip issue statuses are not just UI labels. They imply different expectations about ownership and execution.
@@ -300,6 +316,15 @@ provider has stopped or change native cancellation acknowledgement.
 ### Known execution waits at admission
 
 A known execution hold is a waiting condition, not a new execution attempt. Every issue wake must read the current effective reconciliation hold under the issue admission lock before creating a run. Resolved recovery bookkeeping can still carry a no-replay hold; only clearing the effective hold makes admission eligible again. The final dispatch gate remains required for changes after admission.
+
+Wake diagnostics preserve the fixed `execution_reconciliation_required` admission
+reason instead of projecting it to `other`. When a review, approval or changes-requested
+wake encounters that hold, the server writes an `execution_stage_wake_held` log
+with company, task, target agent, blocking run and recovery-action IDs, the fixed
+wake reason and blocker cause. It logs the admission decision, not transaction
+commit or a scheduled continuation. Raw errors, task text and wake payloads are
+excluded. These are local server logs; this adds no Telemetry event, tracing span,
+run-log row, polling or automatic retry.
 
 A queued legacy run denied by that final gate is still a wait. Its matching
 dispatch-gate receipt, task identity, and absence of runtime selection, execution

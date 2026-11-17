@@ -46,8 +46,8 @@ export function registerDeferredReceiptWork(
         const rows = await db.select({ id: agentWakeupRequests.id, companyId: agentWakeupRequests.companyId,
           status: agentWakeupRequests.status, updatedAt: agentWakeupRequests.updatedAt,
           claimedAt: agentWakeupRequests.claimedAt, error: agentWakeupRequests.error,
-          delayed: sql<boolean>`${agentWakeupRequests.payload}->'queuedCommentInterrupt' is not null
-            or ${agentWakeupRequests.payload}->'executionWait' is not null`,
+          delayed: sql<boolean>`${agentWakeupRequests.payload}->'_paperclipStageHandoff' is null and (${agentWakeupRequests.payload}->'queuedCommentInterrupt' is not null
+            or ${agentWakeupRequests.payload}->'executionWait' is not null)`,
           interruptedLegacy: sql<boolean>`exists (select 1 from heartbeat_runs r
             where r.company_id = ${agentWakeupRequests.companyId} and r.agent_id = ${agentWakeupRequests.agentId}
               and r.runtime_mode = 'legacy' and r.status = 'cancelled'
@@ -99,6 +99,7 @@ export function registerDeferredReceiptWork(
             ? current.claimedAt.getTime() + 60_000
             : kind === "native" && current.status === "queued" && current.error ? current.updatedAt.getTime() + 30_000
               : kind === "deferred" && current.status === "deferred_issue_execution" && !current.interruptedLegacy
+                && !current.payload?._paperclipStageHandoff
                 && (current.payload?.queuedCommentInterrupt || current.payload?.executionWait)
                 ? current.updatedAt.getTime() + 30_000 : null;
           if (due !== null && due > Date.now()) return { ...entry, dueAt: due };

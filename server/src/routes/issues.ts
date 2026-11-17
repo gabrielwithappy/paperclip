@@ -1,3 +1,4 @@
+import { stageHandoffIdentity } from "../services/heartbeat/stage-handoff.js";
 import { notifyDeferredExecutionWork } from "../services/deferred-execution-notifications.js";
 import { notifyNativeRecoveryNotices } from "../services/native-recovery-notice-notifications.js";
 import { notifyNativeStatusReassessment } from "../services/native-status-reassessment-notifications.js";
@@ -1406,6 +1407,7 @@ const ISSUE_WAKE_DIAGNOSTIC_KNOWN_SOURCES = new Set([
 ]);
 
 const ISSUE_WAKE_DIAGNOSTIC_KNOWN_REASONS = new Set([
+  "execution_reconciliation_required",
   "issue_execution_deferred",
   "chat_task_completed",
   "issue_assigned",
@@ -2772,6 +2774,7 @@ function diffExecutionParticipants(
 
 function buildExecutionStageWakeup(input: {
   issueId: string;
+  statusVersion: number;
   previousState: ParsedExecutionState | null;
   nextState: ParsedExecutionState | null;
   interruptedRunId: string | null;
@@ -2809,6 +2812,7 @@ function buildExecutionStageWakeup(input: {
     return {
       agentId,
       wakeup: {
+        stageHandoff: stageHandoffIdentity(input.statusVersion, nextState),
         source: "assignment" as const,
         triggerDetail: "system" as const,
         reason,
@@ -2855,6 +2859,7 @@ function buildExecutionStageWakeup(input: {
     return {
       agentId,
       wakeup: {
+        stageHandoff: stageHandoffIdentity(input.statusVersion, nextState),
         source: "assignment" as const,
         triggerDetail: "system" as const,
         reason: "execution_changes_requested",
@@ -15737,6 +15742,7 @@ export function issueRoutes(
       const nextExecutionState = parseIssueExecutionState(issue.executionState);
       const executionStageWakeup = buildExecutionStageWakeup({
         issueId: issue.id,
+        statusVersion: issue.statusVersion,
         previousState: previousExecutionState,
         nextState: nextExecutionState,
         interruptedRunId,
@@ -15769,7 +15775,13 @@ export function issueRoutes(
           if (wakeIssueId === issue.id && issue.externalConversationState && issue.identifier) {
             wakeup.contextSnapshot = { ...wakeup.contextSnapshot, taskKey: issue.identifier };
           }
-          wakeups.set(`${agentId}:${wakeIssueId}`, { agentId, wakeup });
+          const key = `${agentId}:${wakeIssueId}`;
+          const existingWake = wakeups.get(key)?.wakeup;
+          // A comment on the same mutation must not replace the canonical stage handoff.
+          if (existingWake?.stageHandoff && !wakeup.stageHandoff) {
+            existingWake.payload = { ...wakeup.payload, ...existingWake.payload };
+            existingWake.contextSnapshot = { ...wakeup.contextSnapshot, ...existingWake.contextSnapshot };
+          } else wakeups.set(key, { agentId, wakeup });
         };
         const addDependencyResolvedWakeup = async (input: {
           agentId: string;
@@ -19169,6 +19181,7 @@ export function issueRoutes(
         }
         commentDecisionStageWakeup = buildExecutionStageWakeup({
           issueId: currentIssue.id,
+          statusVersion: currentIssue.statusVersion,
           previousState: currentExecutionState,
           nextState: parseIssueExecutionState(currentIssue.executionState),
           interruptedRunId,
