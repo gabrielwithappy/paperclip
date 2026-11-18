@@ -1,5 +1,5 @@
 ---
-status: active
+status: complete
 priority: high
 updated: 2026-11-19
 authorization: Implementation, QA review, commit, push to fork and server restart authorized
@@ -25,7 +25,7 @@ Focused adapter and wake preparation tests; relevant shared prompt tests; packag
 
 ## Current state
 
-Next concrete action: implement the OpenCode operational skill entrypoint and bounded recovery guidance using existing runtime paths and payload fields.
+Implementation and acceptance completed; see evidence below.
 
 ## Verification constraint
 
@@ -37,4 +37,16 @@ Implemented the actual selected local/remote operational skill entrypoint and se
 
 Sequential final checks: local adapter 13 passed; QA remote matrix 4 passed; recovery builder/renderer test passed including other/missing agent, terminal/missing/nonpending state and approval. Adapter TypeScript build passed. Server scoped typecheck was killed (137); not retried per host rule and user constraint. QA reported no blocking findings.
 
-Next concrete action: commit/push to fork/devel, restart managed server and verify a fresh normal and forced-recovery review through the real configured PO.
+Completed as recorded in live acceptance below.
+
+## Live acceptance and delivery
+
+Implementation commit 82fca7e997 pushed to fork/devel. Managed paperclipai.service restarted and /api/health reported ok, bootstrap ready and that exact SHA.
+
+- GAB-152: same simple review fixture as baseline, no manual skill path added. Run 451c7aee-6c43-48fd-a08e-735074e3292e succeeded, real PATCH output and approved decision row confirmed; issue done.
+- GAB-153: deliberate first-turn omission. First execution checked out the issue, moving it in_progress, so it did not remain an automatic review-recovery candidate. Restored this test fixture to in_review through board API and explicitly invoked recovery reason through the authorized wake API. Run 132dc597-7d90-4d18-b2ff-3656b8290ec0 showed reviewRoleRendered=true, REST token presence and the new static dispositionRepair. It submitted a persisted approved decision and ended done. This validates actual recovery-reason execution, not automatic scheduler selection.
+- Both tasks completed. GAB-146 was not changed. One successful ordinary and one controlled recovery execution do not establish a general model success rate.
+
+QA reviewer qa_review found no blocking authorization/role issue and contributed remote-path/absent-skill tests. Server package typecheck remains unverified due exit 137; it was not retried. All verification/build/test processes ran individually after the user constraint, with no parallel repeats.
+
+No remaining implementation or restart action. Documentation acceptance notes are committed separately; production code remains the verified implementation SHA.
