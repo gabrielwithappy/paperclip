@@ -1,5 +1,38 @@
 # Run-Log Events
 
+## OpenCode preparation evidence
+
+`opencode.skill_prepared` reports each selected skill's runtime name, link
+result, SHA-256 of the readable `SKILL.md`, and whether it is accessible after
+local injection. For the operational `paperclip` skill it also reports
+`apiReferenceReadable`. `configuredMcpServerCount` counts configured connections,
+not discovered tools. Gateway discovery audit records retain the visible tool
+count and catalog hash; provider tool calls show actual usage. It adds no
+skill contents, host paths or credentials. This proves filesystem preparation,
+not discovery by OpenCode or reading by the model. Compare provider tool output
+for the latter. Injection errors retain the existing stderr error record.
+
+Both preparation events also have bounded JSON stderr receipts so external
+adapter wrappers without the structured event callback retain the evidence.
+For externally installed adapters, rebuild the package actually resolved by the
+extension before restarting; reloading server source alone may load stale dist.
+
+`opencode.preparation` (`paperclip.opencode-preparation.v1`) records bounded
+preparation facts for each provider attempt: fresh/resumed session, local/remote
+execution, selected skill count, full prompt and instruction character counts,
+whether the standard reviewer/approver directive was rendered, and boolean
+`restApiTokenProvided`, `restApiUrlProvided`, `restApiRunIdProvided` from the
+prepared child environment. These indicate configuration presence only, not
+server acceptance or model access to shell tools. It excludes
+paths, credentials and prompt contents. Use the event's existing company/run
+binding to correlate it with `adapter.invoke`, tool calls and issue decision
+activity. Unlike the stored prompt excerpt, these facts survive prompt truncation.
+
+Selection is not proof of successful skill injection, discovery or reading.
+`skillConsumption: unobserved` makes that limit explicit. Compare injection
+messages and provider tool output before attributing a missing review decision
+to the model. These records stay in the local run log.
+
 Run-log events write to the `heartbeat_run_events` table
 (`packages/db/src/schema/heartbeat_run_events.ts:6-20`). They are not
 Paperclip Telemetry events, and they are not OpenTelemetry exports. A run-log

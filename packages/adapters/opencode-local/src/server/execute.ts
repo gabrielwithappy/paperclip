@@ -1,6 +1,7 @@
 import { createProviderStoppedBoundary } from "@paperclipai/adapter-utils/provider-stopped-boundary";
 import { createUsageCheckpointLog } from "@paperclipai/adapter-utils/usage-checkpoint";
 import fs from "node:fs/promises";
+import { createHash } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,6 +29,7 @@ import {
   startAdapterExecutionTargetPaperclipBridge,
 } from "@paperclipai/adapter-utils/execution-target";
 import {
+  PAPERCLIP_OPERATIONAL_SKILL_KEY,
   asString,
   asNumber,
   asStringArray,
@@ -177,6 +179,7 @@ async function ensureOpenCodeSkillsInjected(
   skillsEntries: Array<{ key: string; runtimeName: string; source: string }>,
   desiredSkillNames?: string[],
   skillsHome = resolveOpenCodeSkillsHome({}),
+  onEvent?: AdapterExecutionContext["onEvent"],
 ) {
   await fs.mkdir(skillsHome, { recursive: true });
   const desiredSet = new Set(desiredSkillNames ?? skillsEntries.map((entry) => entry.key));
@@ -196,6 +199,18 @@ async function ensureOpenCodeSkillsInjected(
 
     try {
       const result = await ensurePaperclipSkillSymlink(entry.source, target);
+      const content = await fs.readFile(path.join(target, "SKILL.md")).catch(() => null);
+      const readable = content !== null;
+      const skillEvidence = {
+        runtimeName: entry.runtimeName, linkResult: result, readable,
+        contentSha256: content ? createHash("sha256").update(content).digest("hex") : null,
+        apiReferenceReadable: entry.runtimeName === "paperclip"
+          ? await fs.access(path.join(target, "references", "api-reference.md")).then(() => true, () => false)
+          : null,
+      };
+      await onLog("stderr", `[paperclip] opencode.skill_prepared ${JSON.stringify(skillEvidence)}\n`);
+      await onEvent?.({ eventType: "opencode.skill_prepared", stream: "system", level: readable ? "info" : "warn",
+        message: "OpenCode skill preparation", payload: skillEvidence }).catch(() => {});
       if (result === "skipped") continue;
       await onLog(
         "stderr",
@@ -260,6 +275,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const effectiveWorkspaceCwd = useConfiguredInsteadOfAgentHome ? "" : workspaceCwd;
   const cwd = effectiveWorkspaceCwd || configuredCwd || process.cwd();
   let effectiveExecutionCwd = adapterExecutionTargetRemoteCwd(executionTarget, cwd);
+  let operationalSkillsDir: string | null = executionTargetIsRemote ? null : resolveOpenCodeSkillsHome(config);
   await ensureAbsoluteDirectory(cwd, { createIfMissing: true });
   const openCodeSkillEntries = await readPaperclipRuntimeSkillEntries(config, __moduleDir);
   const desiredOpenCodeSkillNames = resolveLegacyPaperclipDesiredSkillNames(config, openCodeSkillEntries);
@@ -269,6 +285,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       openCodeSkillEntries,
       desiredOpenCodeSkillNames,
       resolveOpenCodeSkillsHome(config),
+      ctx.onEvent,
     );
   }
 
@@ -462,6 +479,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
           });
       if (remoteHomeDir && preparedExecutionTargetRuntime.assetDirs.skills) {
         const remoteSkillsDir = path.posix.join(remoteHomeDir, ".claude", "skills");
+        operationalSkillsDir = remoteSkillsDir;
         await runAdapterExecutionTargetShellCommand(
           runId,
           executionTarget,
@@ -575,6 +593,14 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       run: { id: runId, source: "on_demand" },
       context,
     };
+    const operationalSkill = openCodeSkillEntries.find(entry => entry.key === PAPERCLIP_OPERATIONAL_SKILL_KEY
+      && desiredOpenCodeSkillNames.includes(entry.key));
+    const operationalSkillGuidance = operationalSkill && operationalSkillsDir
+      ? ["Paperclip operational skill for this execution:",
+          JSON.stringify((executionTargetIsRemote ? path.posix : path).join(operationalSkillsDir, operationalSkill.runtimeName, "SKILL.md")),
+          "Read this entrypoint directly for Paperclip task state and review procedures. Resolve its references relative to this file. Do not search the instructions folder for it. This runtime path is internal; do not publish it in the final reply.",
+          "A review verdict in prose or a file does not submit a workflow decision. Confirm the server's decision/status response before reporting that it was recorded. A missing dedicated MCP status tool does not establish that the skill's REST API is unavailable."] .join("\n")
+      : "";
     const buildPrompt = (resumedSession: boolean) => {
       const renderedBootstrapPrompt =
         !resumedSession && bootstrapPromptTemplate.trim().length > 0
@@ -592,6 +618,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       const basePrompt = joinPromptSections([
         instructionsPrefix,
         renderedBootstrapPrompt,
+        operationalSkillGuidance,
         wakePrompt,
         taskContextNote,
         sessionHandoffNote,
@@ -646,6 +673,33 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
         basePrompt,
       ]);
       const args = buildArgs(resumeSessionId);
+      // Keep bounded preparation evidence outside adapter.invoke's truncated
+      // prompt/context. These facts attest preparation, not model consumption.
+      const preparationEvent: Parameters<NonNullable<AdapterExecutionContext["onEvent"]>>[0] = {
+        eventType: "opencode.preparation",
+        stream: "system",
+        level: "info",
+        message: "OpenCode execution preparation",
+        payload: {
+          schema: "paperclip.opencode-preparation.v1",
+          resumedSession: Boolean(resumeSessionId),
+          remoteExecution: executionTargetIsRemote,
+          selectedSkillCount: openCodeSkillEntries.filter(entry => desiredOpenCodeSkillNames.includes(entry.key)).length,
+          promptChars: prompt.length,
+          instructionsChars: promptMetrics.instructionsChars,
+          reviewRoleRendered: prompt.includes("You are waking as the active reviewer"),
+          approvalRoleRendered: prompt.includes("You are waking as the active approver"),
+          skillConsumption: "unobserved",
+          runtimeToolsConfigured: Boolean(ctx.runtimeTools),
+          configuredMcpServerCount: ctx.runtimeMcp?.getServers().length ?? 0,
+          // Inspect the prepared child environment, never the redacted excerpt.
+          restApiTokenProvided: Boolean(preparedRuntimeConfig.env.PAPERCLIP_API_KEY),
+          restApiUrlProvided: Boolean(preparedRuntimeConfig.env.PAPERCLIP_API_URL),
+          restApiRunIdProvided: Boolean(preparedRuntimeConfig.env.PAPERCLIP_RUN_ID),
+        },
+      };
+      await onLog("stderr", `[paperclip] opencode.preparation ${JSON.stringify(preparationEvent.payload)}\n`);
+      await ctx.onEvent?.(preparationEvent).catch(() => {});
       if (onMeta) {
         await onMeta({
           adapterType: "opencode_local",

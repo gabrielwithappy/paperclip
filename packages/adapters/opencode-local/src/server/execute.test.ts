@@ -56,8 +56,10 @@ describe("OpenCode local skill injection", () => {
     }) }));
     const directive = "Chat directive: clarify goals and hand plans off to project tasks.";
     let prompt = "";
+    const events: Array<{ eventType: string; payload?: Record<string, unknown> }> = [];
     const result = await execute({
       runId: "chat-run",
+      authToken: custom ? "diagnostic-test-token-never-log" : undefined,
       agent: { id: "agent-1", companyId: "company-1", name: "OpenCode", adapterType: "opencode_local", adapterConfig: {} },
       runtime: { sessionId: null, sessionParams: null, sessionDisplayId: null, taskKey: null },
       config: {
@@ -73,8 +75,14 @@ describe("OpenCode local skill injection", () => {
         },
       },
       onLog: async () => {},
+      onEvent: async event => { events.push(event); },
       onMeta: async (meta) => { prompt = String(meta.prompt ?? ""); },
     });
+    expect(events.find(event => event.eventType === "opencode.preparation")?.payload).toMatchObject({
+      schema: "paperclip.opencode-preparation.v1", resumedSession: false, skillConsumption: "unobserved",
+      restApiTokenProvided: custom, restApiRunIdProvided: true,
+    });
+    expect(JSON.stringify(events)).not.toContain("diagnostic-test-token-never-log");
     expect(result.exitCode).toBe(0);
     expect(prompt).toContain(directive);
     expect(prompt).toContain(custom ? "Custom agent instruction." : "You are agent agent-1");
@@ -118,6 +126,7 @@ describe("OpenCode local skill injection", () => {
     await fs.writeFile(commandPath, "#!/bin/sh\nexit 0\n", "utf8");
     await fs.chmod(commandPath, 0o755);
 
+    let preparedPrompt = "";
     const previousHome = process.env.HOME;
     process.env.HOME = processHome;
     runProcessMock.mockReset();
@@ -163,9 +172,14 @@ describe("OpenCode local skill injection", () => {
         context: {},
         authToken: "run-jwt-token",
         onLog: async () => {},
+        onMeta: async meta => { preparedPrompt = String(meta.prompt); },
+        onEvent: async () => { throw new Error("diagnostic sink unavailable"); },
       });
 
       expect(result.exitCode).toBe(0);
+      expect(preparedPrompt).toContain(path.join(configuredHome, ".claude", "skills", "paperclip", "SKILL.md"));
+      expect(preparedPrompt).toContain("does not submit a workflow decision");
+      expect(preparedPrompt).not.toContain(path.join(processHome, ".claude"));
       const installedSkill = path.join(configuredHome, ".claude", "skills", "paperclip");
       expect((await fs.lstat(installedSkill)).isSymbolicLink()).toBe(true);
       expect(await fs.realpath(installedSkill)).toBe(await fs.realpath(skillSource));

@@ -75,6 +75,20 @@ transaction's task and run locks. Read and comment access follows normal policy.
 Board-initiated reassignments, agent API keys, native executions, and handoffs to
 another agent still require the outgoing execution to stop before ownership changes.
 
+### Legacy reviewer input and receipts
+
+OpenCode receives the selected operational skill's actual execution entrypoint,
+including a realized remote home when applicable. The path is internal runtime
+guidance. A prose verdict or edited file does not record an execution-policy
+review decision; the reviewer must use the operational API and verify its response.
+
+A review-participant recovery wake rebuilds its role from the current
+company-scoped task state. Only a pending stage assigned to the current agent
+restores reviewer/approver guidance. Reassigned or terminal tasks do not regain
+that role from historical wake data. Bounded disposition guidance asks the
+reviewer to read current state and submit a decision; it grants no new authority
+and does not schedule an additional retry. The existing API checks remain final.
+
 ### Stage handoffs during execution cleanup
 
 A server-created review, approval, or changes-requested handoff can wait for the

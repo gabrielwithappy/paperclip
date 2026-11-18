@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -157,7 +157,7 @@ describe("opencode remote execution", () => {
     },
   );
 
-  it.each([false, true])("prepares the workspace, syncs OpenCode skills, and restores workspace changes for remote SSH execution (managed=%s)", async (managed) => {
+  it.each([[false, false], [false, true], [true, false], [true, true]])("prepares remote skills and advertises only the realized operational entrypoint (managed=%s, operationalSkill=%s)", async (managed, operationalSkill) => {
     const rootDir = await mkdtemp(path.join(os.tmpdir(), "paperclip-opencode-remote-"));
     cleanupDirs.push(rootDir);
     const workspaceDir = path.join(rootDir, "workspace");
@@ -165,6 +165,10 @@ describe("opencode remote execution", () => {
     const managedRemoteWorkspace = "/remote/workspace/.paperclip-runtime/runs/run-1/workspace";
     await mkdir(workspaceDir, { recursive: true });
     await mkdir(alternateWorkspaceDir, { recursive: true });
+    const skillSource = path.join(rootDir, "local-skill-source");
+    await mkdir(skillSource, { recursive: true });
+    await writeFile(path.join(skillSource, "SKILL.md"), "# Operational fixture\n");
+    let preparedPrompt = "";
 
     const result = await execute({
       runId: "run-1",
@@ -185,6 +189,7 @@ describe("opencode remote execution", () => {
         command: "opencode",
         model: "opencode/gpt-5-nano",
         extraArgs: ["--", "--dir"],
+        paperclipRuntimeSkills: operationalSkill ? [{ key: "paperclipai/paperclip/paperclip", runtimeName: "paperclip", source: skillSource }] : [],
         ...(managed ? {
           managedAiConnection: { provider: "openrouter", method: "api_key" },
         } : {}),
@@ -226,8 +231,16 @@ describe("opencode remote execution", () => {
         },
       },
       onLog: async () => {},
+      onMeta: async meta => { preparedPrompt = String(meta.prompt ?? ""); },
     });
 
+    if (operationalSkill) {
+      const expectedHome = managed ? `${managedRemoteWorkspace}/.paperclip-runtime/opencode/managed-auth/run-1` : "/home/agent";
+      expect(preparedPrompt).toContain(`${expectedHome}/.claude/skills/paperclip/SKILL.md`);
+      expect(preparedPrompt).not.toContain(skillSource);
+    } else {
+      expect(preparedPrompt).not.toContain("Paperclip operational skill for this execution:");
+    }
     expect(result.sessionParams).toMatchObject({
       sessionId: "session_123",
       cwd: managedRemoteWorkspace,

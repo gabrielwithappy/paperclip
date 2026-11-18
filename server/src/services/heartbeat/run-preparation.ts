@@ -2264,7 +2264,27 @@ export async function buildPaperclipWakePayload(input: {
   // Simplified Technical English (rendered as a prompt directive downstream).
   simplifiedEnglishInteractions?: boolean;
 }) {
-  const executionStage = parseObject(input.contextSnapshot.executionStage);
+  let executionStage = parseObject(input.contextSnapshot.executionStage);
+  let executionReviewRepair = null;
+  const reviewRecovery = input.contextSnapshot.wakeReason === "execution_review_participant_recovery";
+  if (reviewRecovery) executionStage = {};
+  if (reviewRecovery && typeof input.contextSnapshot.issueId === "string" && input.agentId) {
+    // A recovery payload is a hint, not authority for a reviewer role.
+    const [current] = await input.db.select({ status: issues.status, executionState: issues.executionState })
+      .from(issues).where(and(eq(issues.id, input.contextSnapshot.issueId), eq(issues.companyId, input.companyId)));
+    const state = parseObject(current?.executionState);
+    const participant = parseObject(state.currentParticipant);
+    executionStage = {};
+    if (current?.status === "in_review" && state.status === "pending"
+      && participant.type === "agent" && participant.agentId === input.agentId
+      && (state.currentStageType === "review" || state.currentStageType === "approval")) {
+      executionStage = { ...state, stageId: state.currentStageId, stageType: state.currentStageType,
+        wakeRole: state.currentStageType === "approval" ? "approver" : "reviewer",
+        allowedActions: ["approve", "request_changes"] };
+      executionReviewRepair = { attempt: 1, maxAttempts: 1, sourceRunId: readNonEmptyString(input.contextSnapshot.retryOfRunId),
+        instruction: "The previous reviewer run ended without a saved decision. Read the current task and operational Paperclip skill, then submit the allowed decision through its API. Prose or file edits do not record a decision. Verify the server response before reporting success; preserve current permissions and approval gates." };
+    }
+  }
   const commentIds = extractWakeCommentIds(input.contextSnapshot);
   const annotationCommentId = readNonEmptyString(
     input.contextSnapshot.annotationCommentId,
@@ -2707,7 +2727,7 @@ export async function buildPaperclipWakePayload(input: {
     childIssueSummaryTruncated:
       input.contextSnapshot.childIssueSummaryTruncated === true,
     dispositionRepair:
-      buildReviewPathRecoveryDisposition(input.contextSnapshot) ??
+      executionReviewRepair ?? buildReviewPathRecoveryDisposition(input.contextSnapshot) ??
       (input.contextSnapshot.legacyDispositionEpisode ? {
         attempt: input.contextSnapshot.dispositionRepairAttempt,
         maxAttempts: input.contextSnapshot.dispositionRepairMaxAttempts,
