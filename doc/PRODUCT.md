@@ -145,6 +145,10 @@ choice stays selected while task data refreshes.
 
 ### Task collection creation filters
 
+Task and inbox project filters offer active projects only. Archived project
+metadata remains available to label historical tasks, but does not appear as a
+project choice in those filters.
+
 The task Filters menu also offers **Routine tasks**. It selects tasks with
 `originKind=routine_execution`, including manually triggered routine runs, even
 when other automatic tasks are hidden. The routines list's **View all tasks**

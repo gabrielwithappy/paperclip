@@ -53,6 +53,11 @@ Use New task from the global launcher, task list, or project task view.
 
 ### `task-list`
 
+Task and inbox project filters exclude archived projects while retaining their
+metadata for historical task labels. [Project filter tests](../../ui/src/components/IssueFiltersPopover.test.tsx)
+cover all three filter presentations and removal after refreshed project data;
+this is component coverage, not live verification of project deletion.
+
 Open `/issues` or a project’s Issues view; legacy `/tasks` links redirect.
 Filters → **Routine tasks** selects tasks created by routine runs. The
 `/issues?view=all&originKind=routine_execution` link opens that selection.

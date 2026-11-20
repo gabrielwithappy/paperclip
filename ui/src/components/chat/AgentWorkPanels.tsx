@@ -169,7 +169,7 @@ export function AgentTasksPanel({
           state={filters}
           onChange={(patch) => setFilters((current) => ({ ...current, ...patch }))}
           activeFilterCount={activeFilterCount}
-          projects={projectsQuery.data?.map((project) => ({ id: project.id, name: project.name }))}
+          projects={projectsQuery.data}
           enableExternalObjectFilters={false}
           buttonVariant="outline"
           iconOnly

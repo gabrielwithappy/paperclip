@@ -37,6 +37,7 @@ type AgentOption = {
 type ProjectOption = {
   id: string;
   name: string;
+  archivedAt?: Date | string | null;
 };
 
 type LabelOption = {
@@ -106,7 +107,7 @@ export function IssueFiltersPopover({
   onChange,
   activeFilterCount,
   agents,
-  projects,
+  projects: allProjects,
   labels,
   currentUserId,
   enableExternalObjectFilters = true,
@@ -136,6 +137,10 @@ export function IssueFiltersPopover({
   presentation?: "legacy" | "streamlined" | "refreshed";
   inboxScopeFilters?: InboxScopeFilters;
 }) {
+  const projects = useMemo(
+    () => allProjects?.filter((project) => !project.archivedAt),
+    [allProjects],
+  );
   const streamlined = presentation === "streamlined";
   const refreshed = presentation === "refreshed";
   const [creatorSearch, setCreatorSearch] = useState("");

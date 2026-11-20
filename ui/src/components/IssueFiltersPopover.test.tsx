@@ -52,6 +52,33 @@ describe("IssueFiltersPopover", () => {
     document.body.innerHTML = "";
   });
 
+  it.each(["legacy", "streamlined", "refreshed"] as const)("excludes archived projects and updates choices after deletion in %s", presentation => {
+    const root = createRoot(container);
+    const onChange = vi.fn();
+    const props = { presentation, state: defaultIssueFilterState, onChange, activeFilterCount: 0 };
+    const base = { id: "base", name: "base", archivedAt: null };
+    const removed = { id: "deleted", name: "Removed project", archivedAt: null };
+    const archived = [
+      { id: "wiki", name: "llm-kms-wiki", archivedAt: new Date("2026-11-20T00:00:00Z") },
+      { id: "travel", name: "2026겨울여행", archivedAt: "2026-11-20T00:00:00Z" },
+    ];
+
+    act(() => root.render(<IssueFiltersPopover {...props} projects={[base, removed, ...archived]} />));
+    const projectNames = () => container.querySelector('[data-filter-options="projects"]')?.textContent;
+    expect(projectNames()).toContain("base");
+    expect(projectNames()).toContain("Removed project");
+    expect(projectNames()).not.toContain("llm-kms-wiki");
+    expect(projectNames()).not.toContain("2026겨울여행");
+    const baseRow = Array.from(container.querySelectorAll("label")).find(label => label.textContent === "base");
+    act(() => baseRow?.querySelector("input")?.click());
+    expect(onChange).toHaveBeenCalledWith({ projects: ["base"] });
+
+    act(() => root.render(<IssueFiltersPopover {...props} projects={[base, ...archived]} />));
+    expect(projectNames()).not.toContain("Removed project");
+    expect(projectNames()).toContain("base");
+    act(() => root.unmount());
+  });
+
   it.each(["legacy", "streamlined", "refreshed"] as const)("groups the routine filter under Visibility in %s", presentation => {
     const root = createRoot(container);
     const onChange = vi.fn();

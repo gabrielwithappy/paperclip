@@ -467,7 +467,7 @@ type CreatorOption = {
   searchText?: string;
 };
 
-type ProjectOption = Pick<Project, "id" | "name"> & Partial<Pick<Project, "color" | "workspaces" | "executionWorkspacePolicy" | "primaryWorkspace">>;
+type ProjectOption = Pick<Project, "id" | "name"> & Partial<Pick<Project, "archivedAt" | "color" | "workspaces" | "executionWorkspacePolicy" | "primaryWorkspace">>;
 type IssueListRequestFilters = NonNullable<Parameters<typeof issuesApi.list>[1]>;
 
 interface IssuesListProps {
@@ -1971,7 +1971,7 @@ function StreamlinedIssuesList({
             activeFilterCount={activeFilterCount}
             agents={agents}
             creators={creatorOptions}
-            projects={projects?.map((project) => ({ id: project.id, name: project.name }))}
+            projects={projects}
             labels={labels?.map((label) => ({ id: label.id, name: label.name, color: label.color }))}
             currentUserId={currentUserId}
             enableExternalObjectFilters={externalObjectsEnabled}

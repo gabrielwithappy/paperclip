@@ -2114,6 +2114,34 @@ describe("IssuesList", () => {
     });
   });
 
+  it.each([true, false])("omits archived projects from the task filter (streamlined=%s)", async (streamlined) => {
+    mockInstanceSettingsApi.getExperimental.mockResolvedValue({ enableStreamlinedUi: streamlined });
+    const { root, queryClient } = renderWithQueryClient(<IssuesList
+      issues={[createIssue()]} agents={[]}
+      projects={[
+        { id: "base", name: "base", archivedAt: null },
+        { id: "wiki", name: "llm-kms-wiki", archivedAt: new Date("2026-11-20T00:00:00Z") },
+        { id: "travel", name: "2026겨울여행", archivedAt: new Date("2026-11-20T00:00:00Z") },
+      ]}
+      viewStateKey="paperclip:test-issues" onUpdateIssue={() => undefined}
+    />, container);
+    try {
+      const filterButton = () => Array.from(document.body.querySelectorAll("button")).find(button =>
+        button.title === "Filter" || button.title.startsWith("Filters:") || button.textContent?.includes("Filters:"));
+      await waitForAssertion(() => expect(filterButton()).toBeTruthy());
+      await act(() => filterButton()!.click());
+      await waitForAssertion(() => {
+        const options = document.querySelector('[data-filter-options="projects"]');
+        expect(options?.textContent).toContain("base");
+        expect(options?.textContent).not.toContain("llm-kms-wiki");
+        expect(options?.textContent).not.toContain("2026겨울여행");
+      });
+    } finally {
+      await act(() => root.unmount());
+      queryClient.clear();
+    }
+  });
+
   it.each([true, false])("filters the real list, exposes the checkbox, and scopes search and board reads (streamlined=%s)", async (streamlined) => {
     mockInstanceSettingsApi.getExperimental.mockResolvedValue({ enableStreamlinedUi: streamlined });
     const routine = createIssue({ id: "routine-result", title: "Routine report", originKind: "routine_execution" });
