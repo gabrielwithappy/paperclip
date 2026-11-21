@@ -44,12 +44,6 @@ bypass hiring authorization. Source: [runner resolver](../../server/src/services
 Policy: Agent creation/configuration uses action grants, resource policies and change
 consent; some controls require a board actor.
 
-Board duplication can send `duplicateFromAgentId` on create or hire. Core checks
-that the source is in the same company and requires source configuration update
-permission before restoring masked values at their original adapter configuration paths.
-The intent is not persisted. Normal creation, hire approval, secret validation,
-and response redaction still apply; agent actors cannot use this copy intent.
-
 The early wizard record (`setupId` on create) and completion of that record
 (`setupAgentId` on hire) require a board actor and company-scoped creation
 permission. Its creator can finish their own inactive setup with that permission;
