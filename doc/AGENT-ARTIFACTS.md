@@ -264,3 +264,18 @@ be retried. Workspace files continue to use the existing workspace file viewer.
 
 Storybook: **Tasks / Text file tabs** covers opening from Artifacts, Markdown,
 plain text, empty files, oversized files, missing attachments, and a narrow panel.
+
+## Artifact naming, default project folder, and user confirmation policy
+
+When an agent generates file deliverables (reports, design specs, images, data bundles, etc.):
+
+1. **Default to project workspace, never agent-local**:
+   - Save artifacts in the designated project folder/workspace, never inside the agent's private directory (`AGENT_HOME`).
+   - Default relative path format:
+     `artifacts/<company-id>/<project-name>--<project-id>/<issue-key>--<task-name>/<issue-key>--<deliverable-name>--vNN.<ext>`
+2. **Mandatory user confirmation before file creation**:
+   - Before creating deliverables, present the proposed project folder path to the user (via original Slack thread or task comment/question) and confirm whether to proceed with that path or use a custom folder.
+   - If the user provides an alternative folder, respect the user-chosen location.
+3. **Location record and handoff**:
+   - Save or update the `artifact-location` document on the task with the confirmed relative folder, deliverable names, and status.
+   - When communicating completion in Slack or task comments, provide the verified folder path and artifact links.
