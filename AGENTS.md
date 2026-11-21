@@ -210,13 +210,13 @@ pnpm test:release-smoke
 
 Run the browser suites only when your change touches them or when you are explicitly verifying CI/release flows.
 
-For normal issue work, run the smallest relevant verification first. Do not default to repo-wide typecheck/build/test on every heartbeat when a narrower check is enough to prove the change.
+For normal issue work, run only the smallest strictly necessary verification. Do not run unnecessary verifications or default to repo-wide/heavy package typecheck, build, or test runs when a narrower check is enough to prove the change — unnecessary heavy checks cause memory OOM on this host.
 
-Type checking on this shared development host must follow these rules:
+Type checking and type tests on this shared development host must follow these rules:
 
-- Run typecheck only for changed packages and consumers whose type contracts changed. Documentation-only changes do not need typecheck, tests, or build.
+- Run only strictly necessary type checks/type tests: only for changed packages and consumers whose type contracts actually changed, and never as a routine or precautionary step. Documentation-only changes do not need typecheck, tests, or build.
 - Reuse a successful check when its relevant source, dependencies, configuration, and generated inputs have not changed. A new turn, handoff, commit, or push alone does not require another check.
-- Run only one typecheck process at a time across checkouts and agents on this host. Check for an existing typecheck before starting one; wait for it instead of launching a duplicate. Do not stop another contributor's process without coordinating with them.
+- Never run type checks or type tests in parallel — always run them strictly sequentially, one process at a time across checkouts and agents on this host, to prevent memory OOM. Check for an existing typecheck before starting one; wait for it instead of launching a duplicate, and do not stop another contributor's process without coordinating with them.
 - Do not run repository-wide typechecks as a precaution when a package-scoped check covers the changed contracts. Expand the scope only when dependency or contract impact requires it, and state why.
 - Run typecheck separately from memory-intensive builds and test suites; do not overlap these workloads. A build that invokes TypeScript also counts as a typecheck workload.
 - If typecheck exits with 137 or reports an out-of-memory error, record the failure and stop automatic retries. Reduce the scope or competing workload before one justified retry. Do not launch recursive retries in parallel or increase memory limits as a substitute for reducing concurrency.

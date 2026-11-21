@@ -107,3 +107,30 @@ it("recognizes only an unclaimed pre-dispatch review wait receipt", () => {
     { resultJson: { ...run.resultJson, workspaceRestoreFailure: "restore_unsafe_archive" } },
   ]) expect(isPreDispatchReviewWait({ ...run, ...patch })).toBe(false);
 });
+
+it("skips reconciliation for a confirmed review self-handoff reassignment stop unless workspace restore failed", () => {
+  expect(legacyExecutionNeedsReconciliation({
+    runtimeMode: "legacy",
+    status: "cancelled",
+    errorCode: "issue_reassigned",
+    resultJson: { reassignmentStopConfirmed: true, reviewSelfHandoffConfirmed: true },
+  })).toBe(false);
+
+  expect(legacyExecutionNeedsReconciliation({
+    runtimeMode: "legacy",
+    status: "cancelled",
+    errorCode: "issue_reassigned",
+    resultJson: { reassignmentStopConfirmed: true },
+  })).toBe(true);
+
+  expect(legacyExecutionNeedsReconciliation({
+    runtimeMode: "legacy",
+    status: "cancelled",
+    errorCode: "issue_reassigned",
+    resultJson: {
+      reassignmentStopConfirmed: true,
+      reviewSelfHandoffConfirmed: true,
+      workspaceRestoreFailure: "restore_unsafe_archive",
+    },
+  })).toBe(true);
+});

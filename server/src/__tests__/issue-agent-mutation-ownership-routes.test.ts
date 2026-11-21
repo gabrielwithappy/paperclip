@@ -3038,8 +3038,37 @@ describe("agent issue mutation checkout ownership", () => {
         });
       expect(res.status, JSON.stringify(res.body)).toBe(200);
       expect(mockHeartbeatService.cancelRun).toHaveBeenCalledTimes(1);
+      expect(mockHeartbeatService.cancelRun.mock.calls[0]?.[2]?.resultJson).not.toHaveProperty("reviewSelfHandoffConfirmed");
       expect(mockHeartbeatService.cancelRun.mock.invocationCallOrder[0])
         .toBeLessThan(mockIssueService.update.mock.invocationCallOrder[0]!);
+    });
+
+    it("marks reviewSelfHandoffConfirmed when the active agent run hands off to an in_review stage", async () => {
+      mockIssueService.getById.mockResolvedValue(makeIssue({
+        status: "in_progress",
+        executionRunId: ownerRunId,
+        executionPolicy: {
+          stages: [{ id: recoveryActionId, type: "review", participants: [{ type: "agent", agentId: peerAgentId }] }],
+        },
+      }));
+      const res = await request(handoffApp({ ...ownerActor(), source: "agent_jwt" }))
+        .patch(`/api/issues/${issueId}`).send({
+          status: "in_review",
+          assigneeAgentId: peerAgentId,
+          assigneeUserId: null,
+        });
+      expect(res.status, JSON.stringify(res.body)).toBe(200);
+      expect(mockHeartbeatService.cancelRun).toHaveBeenCalledWith(
+        runningRun.id,
+        "Cancelled before issue reassignment",
+        expect.objectContaining({
+          errorCode: "issue_reassigned",
+          resultJson: expect.objectContaining({
+            reassignmentStopConfirmed: true,
+            reviewSelfHandoffConfirmed: true,
+          }),
+        }),
+      );
     });
   });
 

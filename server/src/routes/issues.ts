@@ -14648,13 +14648,38 @@ export function issueRoutes(
           runToStopForReassignment.agentId === req.actor.agentId &&
           runToStopForReassignment.companyId === existing.companyId &&
           runToStopForReassignment.contextSnapshot?.issueId === existing.id;
+        const nextExecutionStateForHandoff = parseIssueExecutionState(
+          updateFields.executionState === undefined
+            ? existing.executionState
+            : updateFields.executionState,
+        );
+        const isReviewSelfHandoff =
+          req.actor.type === "agent" &&
+          req.actor.agentId === existing.assigneeAgentId &&
+          updateFields.status === "in_review" &&
+          nextExecutionStateForHandoff?.status === "pending" &&
+          nextExecutionStateForHandoff.currentStageType === "review" &&
+          Boolean(
+            (nextExecutionStateForHandoff.currentParticipant?.type === "agent" &&
+              nextExecutionStateForHandoff.currentParticipant.agentId) ||
+              (nextExecutionStateForHandoff.currentParticipant?.type === "user" &&
+                nextExecutionStateForHandoff.currentParticipant.userId),
+          ) &&
+          runToStopForReassignment?.id === req.actor.runId &&
+          runToStopForReassignment.agentId === req.actor.agentId &&
+          runToStopForReassignment.companyId === existing.companyId &&
+          runToStopForReassignment.contextSnapshot?.issueId === existing.id;
         if (runToStopForReassignment && !isHumanSelfHandoff) {
           const cancelled = await heartbeat.cancelRun(
             runToStopForReassignment.id,
             "Cancelled before issue reassignment",
             {
               errorCode: "issue_reassigned",
-              resultJson: { reassignmentStopConfirmed: true, issueMutationStopId },
+              resultJson: {
+                reassignmentStopConfirmed: true,
+                issueMutationStopId,
+                ...(isReviewSelfHandoff ? { reviewSelfHandoffConfirmed: true } : {}),
+              },
               eventMessage: "run cancelled before issue reassignment",
               eventPayload: { issueId: existing.id },
             },
