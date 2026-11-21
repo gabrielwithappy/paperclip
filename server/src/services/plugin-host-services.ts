@@ -91,7 +91,7 @@ import {
   type AuthorizationActor,
   type IssuePrivacyRow,
 } from "./authorization.js";
-import { redactEventPayload, sanitizeRecord } from "../redaction.js";
+import { redactApprovalPayload, redactEventPayload, sanitizeRecord } from "../redaction.js";
 import type { WorkerHostCallContext } from "@paperclipai/plugin-sdk";
 import {
   normalizeProviderFamily,
@@ -1179,17 +1179,6 @@ export function buildHostServices(
       source: args.source,
     }, "failed to wake assignee on plugin-relayed interaction resolution"));
   };
-
-  /**
-   * Redact an approval's payload before returning it through the plugin bridge,
-   * mirroring the web app's own approval read routes (routes/approvals.ts's
-   * redactApprovalPayload). Ensures the chat surface never receives secrets the
-   * web app itself hides from an approval reader.
-   */
-  const redactApprovalPayload = <T extends { payload: Record<string, unknown> }>(approval: T): T => ({
-    ...approval,
-    payload: redactEventPayload(approval.payload) ?? {},
-  });
 
   const pluginActivityDetails = (
     details: Record<string, unknown> | null | undefined,
