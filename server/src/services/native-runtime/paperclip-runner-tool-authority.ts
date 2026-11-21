@@ -1,3 +1,4 @@
+import { redactApprovalPayload } from "../../redaction.js";
 import { nativeRunKeyScope, nativeSkillTestToolAllowed, assertNativeSkillTestTool } from "./native-skill-test-scope.js";
 import { requiredQualityReviewSchema } from "@paperclipai/shared";
 import { priorRecoveryApiReceipt } from "../recovery-effect-receipts.js";
@@ -941,10 +942,10 @@ export class PaperclipRunnerToolAuthority {
         return { actor: redactedActor(actor) };
       }
       case "list_approvals":
-        return { approvals: await approvalService(this.db).list(this.binding.companyId, undefined, await approvalReadSqlCondition(this.db, this.#privacyActor(context.run))) };
+        return { approvals: (await approvalService(this.db).list(this.binding.companyId, undefined, await approvalReadSqlCondition(this.db, this.#privacyActor(context.run)))).map(redactApprovalPayload) };
       case "get_approval": {
         const approval = await this.#approval(requiredString(input.approvalId));
-        return { approval };
+        return { approval: redactApprovalPayload(approval) };
       }
       case "get_approval_context": {
         const approval = await this.#approval(requiredString(input.approvalId));
@@ -957,7 +958,7 @@ export class PaperclipRunnerToolAuthority {
             await issueReadSqlCondition(this.db, this.#privacyActor(context.run)),
           ));
         const readable = this.binding.museRuntime ? await this.#readableMuseTaskIds(context.run, tasks.map(row => row.issue.id)) : null;
-        return { approval, tasks: tasks.filter(row => !readable || readable.has(row.issue.id)).map(row => row.issue) };
+        return { approval: redactApprovalPayload(approval), tasks: tasks.filter(row => !readable || readable.has(row.issue.id)).map(row => row.issue) };
       }
       case "report_progress": return this.#reportProgress(input);
       case "send_chat_message": return this.#sendChatMessage(input, this.#privacyActor(context.run));
