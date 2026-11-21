@@ -1417,6 +1417,12 @@ Credentials remain available for retry when a save response is lost. A confirmed
 client rejection removes only newly staged credentials from that attempt.
 Sandbox authentication and saved AI connections keep their existing flows.
 
+Board duplication can pass `duplicateFromAgentId` on agent create or hire.
+The source must belong to the same company and the caller must have source
+configuration update permission. Core restores display-only redactions at their
+original adapter configuration paths before normal creation validation. This copy intent
+is not persisted; creation approval and response redaction remain in effect.
+
 - `GET /companies/:companyId/agents`
 - `POST /companies/:companyId/agents`
 - `GET /agents/:agentId`
